@@ -1,0 +1,605 @@
+{
+    "code": 200,
+    "message": "success",
+    "data": {
+        "apiVersion": null,
+        "kind": null,
+        "metadata": {
+            "annotations": {
+                "app.kubernetes.io/description": "Go 应用全链路 CICD 流水线（DAG）：git-sync 拉源码并算版本元数据 → go-build 编译静态二进制 → go-build-image 用 buildkitd 打成运行镜像 tar → push-image-nexus3 用 skopeo 推送到 nexus3 → go-k8s-deploy-via-api 直调 k8s API（SSA + rollout 轮询）部署。五个子任务以 templateRef 引用 basetasktemplate 下已发布的 WorkflowTemplate，本清单只做编排与参数衔接。"
+            },
+            "clusterName": null,
+            "creationTimestamp": "2026-07-09T17:53:20+08:00",
+            "deletionGracePeriodSeconds": null,
+            "deletionTimestamp": null,
+            "finalizers": null,
+            "generateName": null,
+            "generation": 1,
+            "labels": {
+                "app.kubernetes.io/name": "go-cicd-pipeline",
+                "app.kubernetes.io/part-of": "pipeline",
+                "app.kubernetes.io/version": "0.0.1",
+                "kubernetes.io/os": "linux",
+                "workflows.argoproj.io/creator": "system-serviceaccount-argo-argo-server"
+            },
+            "managedFields": [{
+                "apiVersion": "argoproj.io/v1alpha1",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:annotations": {
+                            ".": {},
+                            "f:app.kubernetes.io/description": {}
+                        },
+                        "f:labels": {
+                            ".": {},
+                            "f:app.kubernetes.io/name": {},
+                            "f:app.kubernetes.io/part-of": {},
+                            "f:app.kubernetes.io/version": {},
+                            "f:kubernetes.io/os": {},
+                            "f:workflows.argoproj.io/creator": {}
+                        }
+                    },
+                    "f:spec": {}
+                },
+                "manager": "argo",
+                "operation": "Update",
+                "time": "2026-07-09T17:53:20+08:00"
+            }],
+            "name": "go-cicd-pipeline",
+            "namespace": "argo",
+            "ownerReferences": null,
+            "resourceVersion": "527779",
+            "selfLink": null,
+            "uid": "cdc62f51-c656-4f96-9088-1b3f97871df7"
+        },
+        "spec": {
+            "activeDeadlineSeconds": null,
+            "affinity": null,
+            "archiveLogs": null,
+            "arguments": {
+                "artifacts": null,
+                "parameters": [{
+                        "description": "应用唯一标识；同时构成 nexus 镜像 repo 路径，且当 deploy-name 留空时作为 Deployment 名（须 DNS-1123）",
+                        "globalName": null,
+                        "name": "app-id",
+                        "value": null,
+                        "valueFrom": null,
+                        "default": "go-web-demo",
+                        "enum": null
+                    },
+                    {
+                        "description": "Gitee 仓库 SSH URL，如 git@gitee.com:xxx/yyy.git",
+                        "globalName": null,
+                        "name": "git-url",
+                        "value": null,
+                        "valueFrom": null,
+                        "default": "git@gitee.com:awsomeyangtu/go-web-demo.git",
+                        "enum": null
+                    },
+                    {
+                        "description": "目标构建分支",
+                        "globalName": null,
+                        "name": "git-branch",
+                        "value": null,
+                        "valueFrom": null,
+                        "default": "master",
+                        "enum": null
+                    },
+                    {
+                        "description": "环境标识（dev/test/prod），构成镜像 repo 路径的一部分",
+                        "globalName": null,
+                        "name": "env",
+                        "value": "dev",
+                        "valueFrom": null,
+                        "default": null,
+                        "enum": null
+                    },
+                    {
+                        "description": "Go 主包目录（含 main）相对工作区位置；单二进制在根目录则填 .",
+                        "globalName": null,
+                        "name": "build-context-path",
+                        "value": "cmd/server",
+                        "valueFrom": null,
+                        "default": null,
+                        "enum": null
+                    },
+                    {
+                        "description": "编译环境变量前缀，默认禁用 CGO 做静态链接（运行镜像需匹配静态二进制）",
+                        "globalName": null,
+                        "name": "build-go-env",
+                        "value": "CGO_ENABLED=0",
+                        "valueFrom": null,
+                        "default": null,
+                        "enum": null
+                    },
+                    {
+                        "description": "自带 Go 工具链的构建镜像",
+                        "globalName": null,
+                        "name": "build-go-image",
+                        "value": "golang:1.26.4-alpine",
+                        "valueFrom": null,
+                        "default": null,
+                        "enum": null
+                    }
+                ]
+            },
+            "artifactGC": null,
+            "artifactRepositoryRef": null,
+            "automountServiceAccountToken": null,
+            "dnsConfig": null,
+            "dnsPolicy": null,
+            "entrypoint": "main",
+            "executor": null,
+            "hooks": null,
+            "hostAliases": null,
+            "hostNetwork": null,
+            "imagePullSecrets": null,
+            "metrics": null,
+            "nodeSelector": null,
+            "onExit": null,
+            "parallelism": null,
+            "podDisruptionBudget": null,
+            "podGC": null,
+            "podMetadata": null,
+            "podPriority": null,
+            "podPriorityClassName": null,
+            "podSpecPatch": null,
+            "priority": null,
+            "retryStrategy": null,
+            "schedulerName": null,
+            "securityContext": null,
+            "serviceAccountName": "argo",
+            "shutdown": null,
+            "suspend": null,
+            "synchronization": null,
+            "templateDefaults": null,
+            "templates": [{
+                "activeDeadlineSeconds": null,
+                "affinity": null,
+                "archiveLocation": null,
+                "automountServiceAccountToken": null,
+                "container": null,
+                "containerSet": null,
+                "daemon": null,
+                "dag": {
+                    "failFast": null,
+                    "target": null,
+                    "tasks": [{
+                            "arguments": {
+                                "artifacts": null,
+                                "parameters": [{
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "app-id",
+                                        "value": "{{workflow.parameters.app-id}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "env",
+                                        "value": "{{workflow.parameters.env}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "pipeline-run-name",
+                                        "value": "{{workflow.name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "git-url",
+                                        "value": "{{workflow.parameters.git-url}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "git-branch",
+                                        "value": "{{workflow.parameters.git-branch}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    }
+                                ]
+                            },
+                            "continueOn": null,
+                            "dependencies": null,
+                            "depends": null,
+                            "hooks": null,
+                            "inline": null,
+                            "name": "git-sync",
+                            "onExit": null,
+                            "template": null,
+                            "templateRef": {
+                                "clusterScope": null,
+                                "name": "git-sync",
+                                "template": "entrypoint"
+                            },
+                            "when": null,
+                            "withItems": null,
+                            "withParam": null,
+                            "withSequence": null
+                        },
+                        {
+                            "arguments": {
+                                "artifacts": null,
+                                "parameters": [{
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "pipeline-run-name",
+                                        "value": "{{workflow.name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-workspace-path",
+                                        "value": "{{tasks.git-sync.outputs.parameters.build-workspace-path}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-context-path",
+                                        "value": "{{workflow.parameters.build-context-path}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-go-env",
+                                        "value": "{{workflow.parameters.build-go-env}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-artifact-name",
+                                        "value": "{{tasks.git-sync.outputs.parameters.build-artifact-name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-go-image",
+                                        "value": "{{workflow.parameters.build-go-image}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    }
+                                ]
+                            },
+                            "continueOn": null,
+                            "dependencies": null,
+                            "depends": "git-sync",
+                            "hooks": null,
+                            "inline": null,
+                            "name": "go-build",
+                            "onExit": null,
+                            "template": null,
+                            "templateRef": {
+                                "clusterScope": null,
+                                "name": "go-build",
+                                "template": "entrypoint"
+                            },
+                            "when": null,
+                            "withItems": null,
+                            "withParam": null,
+                            "withSequence": null
+                        },
+                        {
+                            "arguments": {
+                                "artifacts": null,
+                                "parameters": [{
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "pipeline-run-name",
+                                        "value": "{{workflow.name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-artifact-path",
+                                        "value": "{{tasks.go-build.outputs.parameters.build-artifact-path}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-artifact-name",
+                                        "value": "{{tasks.git-sync.outputs.parameters.build-artifact-name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-image-name",
+                                        "value": "{{workflow.parameters.app-id}}/{{workflow.parameters.env}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-image-tag",
+                                        "value": "{{tasks.git-sync.outputs.parameters.build-artifact-name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    }
+                                ]
+                            },
+                            "continueOn": null,
+                            "dependencies": null,
+                            "depends": "go-build",
+                            "hooks": null,
+                            "inline": null,
+                            "name": "go-build-image",
+                            "onExit": null,
+                            "template": null,
+                            "templateRef": {
+                                "clusterScope": null,
+                                "name": "go-build-image",
+                                "template": "entrypoint"
+                            },
+                            "when": null,
+                            "withItems": null,
+                            "withParam": null,
+                            "withSequence": null
+                        },
+                        {
+                            "arguments": {
+                                "artifacts": null,
+                                "parameters": [{
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "build-image-tar-path",
+                                        "value": "{{tasks.go-build-image.outputs.parameters.build-image-tar-path}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "nexus-repo-name",
+                                        "value": "{{workflow.parameters.app-id}}/{{workflow.parameters.env}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "nexus-image-tag",
+                                        "value": "{{tasks.git-sync.outputs.parameters.build-artifact-name}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    }
+                                ]
+                            },
+                            "continueOn": null,
+                            "dependencies": null,
+                            "depends": "go-build-image",
+                            "hooks": null,
+                            "inline": null,
+                            "name": "push-image-nexus3",
+                            "onExit": null,
+                            "template": null,
+                            "templateRef": {
+                                "clusterScope": null,
+                                "name": "push-image-nexus3",
+                                "template": "entrypoint"
+                            },
+                            "when": null,
+                            "withItems": null,
+                            "withParam": null,
+                            "withSequence": null
+                        },
+                        {
+                            "arguments": {
+                                "artifacts": null,
+                                "parameters": [{
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "image-ref",
+                                        "value": "{{tasks.push-image-nexus3.outputs.parameters.nexus-image-ref}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    },
+                                    {
+                                        "description": null,
+                                        "globalName": null,
+                                        "name": "app-id",
+                                        "value": "{{workflow.parameters.app-id}}",
+                                        "valueFrom": null,
+                                        "default": null,
+                                        "enum": null
+                                    }
+                                ]
+                            },
+                            "continueOn": null,
+                            "dependencies": null,
+                            "depends": "push-image-nexus3",
+                            "hooks": null,
+                            "inline": null,
+                            "name": "go-k8s-deploy-via-api",
+                            "onExit": null,
+                            "template": null,
+                            "templateRef": {
+                                "clusterScope": null,
+                                "name": "go-k8s-deploy-via-api",
+                                "template": "entrypoint"
+                            },
+                            "when": null,
+                            "withItems": null,
+                            "withParam": null,
+                            "withSequence": null
+                        }
+                    ]
+                },
+                "data": null,
+                "executor": null,
+                "failFast": null,
+                "hostAliases": null,
+                "http": null,
+                "initContainers": null,
+                "inputs": {
+                    "artifacts": null,
+                    "parameters": null
+                },
+                "memoize": null,
+                "metadata": {
+                    "annotations": null,
+                    "labels": null
+                },
+                "metrics": null,
+                "name": "main",
+                "nodeSelector": null,
+                "outputs": {
+                    "artifacts": null,
+                    "exitCode": null,
+                    "parameters": null,
+                    "result": null
+                },
+                "parallelism": null,
+                "plugin": null,
+                "podSpecPatch": null,
+                "priority": null,
+                "priorityClassName": null,
+                "resource": null,
+                "retryStrategy": null,
+                "schedulerName": null,
+                "script": null,
+                "securityContext": null,
+                "serviceAccountName": null,
+                "sidecars": null,
+                "steps": null,
+                "suspend": null,
+                "synchronization": null,
+                "timeout": null,
+                "tolerations": null,
+                "volumes": null
+            }],
+            "tolerations": null,
+            "ttlStrategy": null,
+            "volumeClaimGC": null,
+            "volumeClaimTemplates": null,
+            "volumes": [{
+                    "awsElasticBlockStore": null,
+                    "azureDisk": null,
+                    "azureFile": null,
+                    "cephfs": null,
+                    "cinder": null,
+                    "configMap": null,
+                    "csi": null,
+                    "downwardAPI": null,
+                    "emptyDir": null,
+                    "ephemeral": null,
+                    "fc": null,
+                    "flexVolume": null,
+                    "flocker": null,
+                    "gcePersistentDisk": null,
+                    "gitRepo": null,
+                    "glusterfs": null,
+                    "hostPath": null,
+                    "iscsi": null,
+                    "name": "shared-data",
+                    "nfs": null,
+                    "persistentVolumeClaim": {
+                        "claimName": "nfs-pvc",
+                        "readOnly": null
+                    },
+                    "photonPersistentDisk": null,
+                    "portworxVolume": null,
+                    "projected": null,
+                    "quobyte": null,
+                    "rbd": null,
+                    "scaleIO": null,
+                    "secret": null,
+                    "storageos": null,
+                    "vsphereVolume": null
+                },
+                {
+                    "awsElasticBlockStore": null,
+                    "azureDisk": null,
+                    "azureFile": null,
+                    "cephfs": null,
+                    "cinder": null,
+                    "configMap": null,
+                    "csi": null,
+                    "downwardAPI": null,
+                    "emptyDir": null,
+                    "ephemeral": null,
+                    "fc": null,
+                    "flexVolume": null,
+                    "flocker": null,
+                    "gcePersistentDisk": null,
+                    "gitRepo": null,
+                    "glusterfs": null,
+                    "hostPath": null,
+                    "iscsi": null,
+                    "name": "gitee-ssh",
+                    "nfs": null,
+                    "persistentVolumeClaim": null,
+                    "photonPersistentDisk": null,
+                    "portworxVolume": null,
+                    "projected": null,
+                    "quobyte": null,
+                    "rbd": null,
+                    "scaleIO": null,
+                    "secret": {
+                        "defaultMode": null,
+                        "items": null,
+                        "optional": null,
+                        "secretName": "gitee-ssh-secret"
+                    },
+                    "storageos": null,
+                    "vsphereVolume": null
+                }
+            ],
+            "workflowMetadata": {
+                "annotations": null,
+                "labels": {
+                    "app.kubernetes.io/name": "go-cicd-pipeline",
+                    "app.kubernetes.io/part-of": "pipeline"
+                },
+                "labelsFrom": null
+            },
+            "workflowTemplateRef": null
+        }
+    }
+}
