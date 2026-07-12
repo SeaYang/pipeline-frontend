@@ -22,7 +22,12 @@ const handleMenuClick = (index: string) => {
 
 <template>
   <el-aside class="side-aside" :width="isCollapse ? '64px' : '200px'">
-    <div class="aside-title" :class="{ 'is-collapse': isCollapse }">
+    <div
+      class="aside-title"
+      :class="{ 'is-collapse': isCollapse }"
+      title="返回首页"
+      @click="router.push('/')"
+    >
       <span v-if="!isCollapse">流水线平台</span>
       <span v-else>流水线</span>
     </div>
@@ -72,6 +77,13 @@ const handleMenuClick = (index: string) => {
   border-bottom: 1px solid var(--el-border-color-light);
   white-space: nowrap;
   overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.aside-title:hover {
+  color: var(--el-color-primary);
 }
 
 /* 折叠态：侧栏只有 64px 宽，三个字「流水线」需缩小字号 + 去字间距避免溢出 */
