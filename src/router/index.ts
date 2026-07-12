@@ -23,6 +23,17 @@ const router = createRouter({
       component: () => import('../views/argo/PipelineDetail.vue'),
       props: true,
     },
+    {
+      path: '/dict/type',
+      name: 'dict-type',
+      component: () => import('../views/dict/DictTypeList.vue'),
+    },
+    {
+      path: '/dict/data/:dictType',
+      name: 'dict-data',
+      component: () => import('../views/dict/DictDataList.vue'),
+      props: true,
+    },
   ],
 })
 

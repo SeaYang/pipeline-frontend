@@ -10,6 +10,9 @@ const handleMenuClick = (index: string) => {
     case '1-1':
       router.push('/argo-flow')
       break
+    case '1-2':
+      router.push('/dict/type')
+      break
     case '2-1':
       router.push('/argo/pipelines')
       break
@@ -35,6 +38,7 @@ const handleMenuClick = (index: string) => {
           <span>基础配置</span>
         </template>
         <el-menu-item index="1-1">流水线详情</el-menu-item>
+        <el-menu-item index="1-2">字典配置</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="2">
         <template #title>
