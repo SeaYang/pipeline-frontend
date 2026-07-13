@@ -44,6 +44,17 @@ const router = createRouter({
           component: () => import('@/views/dict/DictDataList.vue'),
           props: true,
         },
+        {
+          path: 'task-template',
+          name: 'task-template',
+          component: () => import('@/views/task-template/TaskTemplateList.vue'),
+        },
+        {
+          path: 'task-template/:taskTemplateCode/versions',
+          name: 'task-template-versions',
+          component: () => import('@/views/task-template/TaskTemplateVersionManage.vue'),
+          props: true,
+        },
       ],
     },
     {
