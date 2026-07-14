@@ -55,6 +55,17 @@ const router = createRouter({
           component: () => import('@/views/task-template/TaskTemplateVersionManage.vue'),
           props: true,
         },
+        {
+          path: 'pipeline-template',
+          name: 'pipeline-template',
+          component: () => import('@/views/pipeline-template/PipelineTemplateList.vue'),
+        },
+        {
+          path: 'pipeline-template/:pipelineTemplateCode/versions',
+          name: 'pipeline-template-versions',
+          component: () => import('@/views/pipeline-template/PipelineTemplateVersionManage.vue'),
+          props: true,
+        },
       ],
     },
     {

@@ -16,6 +16,9 @@ const handleMenuClick = (index: string) => {
     case '1-3':
       router.push('/task-template')
       break
+    case '1-4':
+      router.push('/pipeline-template')
+      break
     case '2-1':
       router.push('/argo/pipelines')
       break
@@ -48,6 +51,7 @@ const handleMenuClick = (index: string) => {
         <el-menu-item index="1-1">流水线详情</el-menu-item>
         <el-menu-item index="1-2">字典配置</el-menu-item>
         <el-menu-item index="1-3">任务模板</el-menu-item>
+        <el-menu-item index="1-4">流水线模板</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="2">
         <template #title>
