@@ -34,6 +34,11 @@ const router = createRouter({
           props: true,
         },
         {
+          path: 'app-list',
+          name: 'app-list',
+          component: () => import('@/views/app-info/AppInfoList.vue'),
+        },
+        {
           path: 'dict/type',
           name: 'dict-type',
           component: () => import('@/views/dict/DictTypeList.vue'),
