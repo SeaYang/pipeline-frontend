@@ -57,3 +57,18 @@ export function formatRelative(iso?: string | null): string {
   if (diff < 1000) return 'just now'
   return `${humanizeDuration(diff)} ago`
 }
+
+/**
+ * 把「执行时长（秒）」格式化为「1分56秒」这种中文样式，超过 1 小时展示「1时2分3秒」。
+ * 空值返回 '-'。
+ */
+export function formatDurationSeconds(seconds?: number | null): string {
+  if (seconds === undefined || seconds === null || Number.isNaN(seconds) || seconds < 0) return '-'
+  const total = Math.floor(seconds)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  if (hours > 0) return `${hours}时${minutes}分${secs}秒`
+  if (minutes > 0) return `${minutes}分${secs}秒`
+  return `${secs}秒`
+}

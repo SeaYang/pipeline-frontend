@@ -31,8 +31,14 @@ export interface PipelineNodeData {
   duration?: string
   /** 开始时间 */
   startedAt?: string
+  /** 结束时间 */
+  finishedAt?: string
+  /** 运行节点 */
+  hostNodeName?: string
   /** 引用的模板名 */
   templateName?: string
+  /** 引用模板的 resource name（templateRef.name） */
+  templateRefName?: string
   /** 节点信息/错误信息 */
   message?: string
   /** 是否已产生运行实例（控制“查看日志”等仅运行后才可用的操作） */
@@ -57,6 +63,10 @@ export interface ArgoTaskNode {
   runtimeId?: string
   /** 是否已产生运行实例 */
   hasRun: boolean
+  /** 入参（运行时） */
+  inputs?: { parameters?: ArgoParameter[] }
+  /** 出参（运行时） */
+  outputs?: { parameters?: ArgoParameter[]; exitCode?: string }
 }
 
 const NODE_W = 200
@@ -109,6 +119,8 @@ export function buildTaskNodes(detail: ArgoWorkflowDetail): ArgoTaskNode[] {
       message: n.message,
       runtimeId: n.id,
       hasRun: true,
+      inputs: n.inputs,
+      outputs: n.outputs,
     }))
   }
 
@@ -127,6 +139,8 @@ export function buildTaskNodes(detail: ArgoWorkflowDetail): ArgoTaskNode[] {
       message: runtime?.message,
       runtimeId: runtime?.id,
       hasRun: !!runtime,
+      inputs: runtime?.inputs,
+      outputs: runtime?.outputs,
     }
   })
 }
@@ -191,12 +205,26 @@ function buildEdges(detail: ArgoWorkflowDetail, taskNodes: ArgoTaskNode[]): Edge
  * - 节点全集来自静态 DAG 任务定义，节点数量固定不随运行进度变化
  * - 边由静态 DAG 的 depends 依赖构成
  * - 布局方向：从左到右（LR）
+ *
+ * @param detail           Argo Workflow 详情
+ * @param taskCodeNameMap  任务编码→中文名映射，提供时节点 label 优先使用中文名
  */
-export function workflowToFlow(detail: ArgoWorkflowDetail): {
+export function workflowToFlow(
+  detail: ArgoWorkflowDetail,
+  taskCodeNameMap?: Record<string, string>,
+): {
   nodes: Node<PipelineNodeData>[]
   edges: Edge[]
 } {
   const taskNodes = buildTaskNodes(detail)
+  // 如果提供了中文名映射，覆盖 displayName
+  if (taskCodeNameMap) {
+    for (const t of taskNodes) {
+      if (taskCodeNameMap[t.taskName]) {
+        t.displayName = taskCodeNameMap[t.taskName]
+      }
+    }
+  }
   const nodes: Node<PipelineNodeData>[] = taskNodes.map(toFlowNode)
   const edges = buildEdges(detail, taskNodes)
 
@@ -227,7 +255,10 @@ function toFlowNode(t: ArgoTaskNode): Node<PipelineNodeData> {
       progress: t.progress,
       duration: formatDuration(t.startedAt, t.finishedAt),
       startedAt: t.startedAt,
-      templateName: t.templateRef?.name,
+      finishedAt: t.finishedAt,
+      hostNodeName: t.hostNodeName,
+      templateName: t.templateRef?.template,
+      templateRefName: t.templateRef?.name,
       message: t.message,
       hasRun: t.hasRun,
     },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, nextTick } from 'vue'
+import { onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 // xterm 样式需全局注入（不能用 scoped）
@@ -15,6 +15,8 @@ const termHost = ref<HTMLElement | null>(null)
 let term: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let resizeObserver: ResizeObserver | null = null
+/** 已写入终端的字符数，用于增量追加（避免每次全量重写导致滚动跳动） */
+let writtenLength = 0
 
 // ANSI 颜色码（xterm 原生支持）
 const RESET = '\x1b[0m'
@@ -67,7 +69,9 @@ onMounted(async () => {
   term.open(termHost.value!)
 
   // 写入日志（带轻度着色）
-  term.write(colorize(props.content ?? ''))
+  const full = colorize(props.content ?? '')
+  term.write(full)
+  writtenLength = full.length
 
   // 容器尺寸稳定后再 fit，避免列数算错导致折行
   await nextTick()
@@ -83,6 +87,25 @@ onMounted(async () => {
   })
   resizeObserver.observe(termHost.value!)
 })
+
+/**
+ * 监听 content 变化，增量追加新内容到终端。
+ * SSE 每次推送一段增量日志，父组件拼接后 content 变长，
+ * 这里只写入新增部分（colorize 后的增量），避免全量重写导致滚动跳动。
+ */
+watch(
+  () => props.content,
+  (newContent) => {
+    if (!term) return
+    const full = colorize(newContent ?? '')
+    if (full.length > writtenLength) {
+      // 只写入新增部分
+      const delta = full.slice(writtenLength)
+      term.write(delta)
+      writtenLength = full.length
+    }
+  },
+)
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()

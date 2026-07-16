@@ -12,6 +12,10 @@ const emit = defineEmits<{
 /** 查看节点日志：把节点 id 透传给父级，由父级按 Argo v2 规则拼 pod name 后拉日志 */
 const onViewLog = () => emit('viewLog', props.id)
 
+/** 只有 Running / Succeeded / Failed / Error 状态的节点才能查看日志（Pending 时 Pod 还在初始化，k8s 会报 400） */
+const LOGGABLE_PHASES = new Set(['Running', 'Succeeded', 'Failed', 'Error'])
+const canViewLog = computed(() => LOGGABLE_PHASES.has(props.data.phase ?? ''))
+
 /** phase → 强调色 + el-tag 类型 */
 const phaseStyle = computed(() => {
   switch (props.data.phase) {
@@ -49,9 +53,9 @@ const phaseStyle = computed(() => {
       <span v-if="data.duration" class="pnode__dur">{{ data.duration }}</span>
     </div>
 
-    <!-- 节点底部：始终占位以保持所有节点高度一致；仅已产生运行实例的节点展示“查看日志”（@click.stop 阻止冒泡，避免同时触发节点抽屉） -->
-    <div class="pnode__footer">
-      <el-button v-if="data.hasRun" size="small" type="primary" text bg @click.stop="onViewLog">
+    <!-- 节点底部：始终占位以保持所有节点高度一致；仅 Running/Succeeded/Failed/Error 状态展示"查看日志"（@click.stop 阻止冒泡，避免同时触发节点抽屉） -->
+    <div class="pnode__footer" :class="{ 'pnode__footer--bordered': canViewLog }">
+      <el-button v-if="canViewLog" size="small" type="primary" text bg @click.stop="onViewLog">
         <el-icon><Document /></el-icon>&nbsp;日志
       </el-button>
     </div>
@@ -62,6 +66,7 @@ const phaseStyle = computed(() => {
 
 <style scoped>
 .pnode {
+  position: relative;
   width: 200px;
   height: 96px;
   box-sizing: border-box;
@@ -122,6 +127,9 @@ const phaseStyle = computed(() => {
   align-items: center;
   justify-content: flex-end;
   height: 28px;
+}
+
+.pnode__footer--bordered {
   border-top: 1px dashed var(--el-border-color-lighter);
 }
 </style>

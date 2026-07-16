@@ -154,3 +154,60 @@ export async function getWorkflowDetail(name: string): Promise<ArgoWorkflowDetai
   }
   return res.data
 }
+
+/** 执行详情响应：Argo Workflow 实时数据 + 任务编码→中文名映射 */
+export interface PipelineRunExecuteDetail {
+  /** Argo Workflow 实时详情（结构同 ArgoWorkflowDetail） */
+  argoDetail: ArgoWorkflowDetail
+  /** 任务节点编码 → 中文名 映射 */
+  taskCodeNameMap: Record<string, string>
+}
+
+/**
+ * 拉取流水线执行详情（Argo Workflow 实时数据 + 任务编码→中文名映射）。
+ * 走 Java 后端 PipelineRunController#executeDetail：GET /pipeline-run/execute-detail?pipelineRunName={name}
+ */
+export async function getExecuteDetail(pipelineRunName: string): Promise<PipelineRunExecuteDetail> {
+  const res = await request.get<unknown, ApiResult<PipelineRunExecuteDetail>>(
+    '/pipeline-run/execute-detail',
+    { params: { pipelineRunName } },
+  )
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '流水线执行详情获取失败')
+  }
+  return res.data
+}
+
+// ============ SSE 执行详情 ============
+
+/** SSE 推送的执行详情 DTO（和后端 PipelineRunDetailDTO 对应） */
+export interface PipelineRunDetailDTO {
+  pipelineRunName: string
+  status: string
+  startedAt?: string
+  finishedAt?: string
+  duration?: number
+  failMessage?: string
+  /** VueFlow 渲染数据（结构兼容 ArgoWorkflowDetail） */
+  workflowDetail: ArgoWorkflowDetail
+  /** 任务编码→中文名 */
+  taskCodeNameMap: Record<string, string>
+}
+
+/**
+ * 获取任务节点日志。
+ * 非终态调 k8s 实时获取，终态从 pipeline_task_run.log_content 取。
+ *
+ * @param pipelineRunName 流水线执行名称
+ * @param taskCode        任务节点编码
+ */
+export async function getTaskLog(pipelineRunName: string, taskCode: string): Promise<string> {
+  const res = await request.get<unknown, ApiResult<string>>(
+    `/pipeline-run/task-log`,
+    { params: { pipelineRunName, taskCode } },
+  )
+  if (res.code !== 200) {
+    throw new Error(res.message || '获取日志失败')
+  }
+  return res.data || '（暂无日志）'
+}

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Refresh, ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
-import { getWorkflowDetail, type ArgoWorkflowDetail } from '@/api/argo'
-import { workflowToFlow, buildPodName, buildTaskNodes, type ArgoTaskNode } from '@/utils/workflowFlow'
-import { getPodLog } from '@/api/demo'
+import { ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
+import { type ArgoWorkflowDetail, type PipelineRunDetailDTO } from '@/api/argo'
+import { workflowToFlow, buildTaskNodes, type ArgoTaskNode } from '@/utils/workflowFlow'
+import { getAccount } from '@/utils/auth'
 import { getNodeLog } from '@/data/nodeLogs'
-import { formatDateTime, formatDuration, formatRelative } from '@/utils/time'
+import { formatDateTime, formatDuration } from '@/utils/time'
 import PipelineFlowNode from '@/components/flow/PipelineFlowNode.vue'
 import XtermLogViewer from '@/components/flow/XtermLogViewer.vue'
 
@@ -15,12 +15,116 @@ const props = defineProps<{ name: string }>()
 
 const { fitView, zoomIn, zoomOut } = useVueFlow()
 
-const loading = ref(false)
+const loading = ref(true)
 const detail = ref<ArgoWorkflowDetail | null>(null)
+const taskCodeNameMap = ref<Record<string, string>>({})
+
+// ===== SSE 连接管理 =====
+/** SSE 连接状态：connected / reconnecting / disconnected */
+const sseStatus = ref<'connected' | 'reconnecting' | 'disconnected'>('disconnected')
+let sseSource: EventSource | null = null
+
+/** 终态集合：到达后关闭 SSE */
+const TERMINAL_PHASES = new Set(['Succeeded', 'Cancelled'])
+
+function isTerminalPhase() {
+  return TERMINAL_PHASES.has(detail.value?.status?.phase ?? '')
+}
+
+/** 关闭当前 SSE 连接 */
+function closeSse() {
+  if (sseSource) {
+    sseSource.close()
+    sseSource = null
+  }
+}
+
+/**
+ * 建立 SSE 连接，订阅执行详情推送。
+ * - 收到 detail 事件：更新 detail + taskCodeNameMap；终态时自动关闭连接
+ * - 收到 error 事件 / 连接异常：标记重连状态，浏览器 EventSource 会自动重连
+ * - 页面离开时手动 close() 释放资源
+ */
+function connectSse() {
+  closeSse()
+  // EventSource 不支持自定义 header，通过 query param 传递 x-user-id（后端 UserIdFilter 已支持）
+  const account = getAccount() ?? ''
+  const url = `/api/pipeline-run/sse?pipelineRunName=${encodeURIComponent(props.name)}&x-user-id=${encodeURIComponent(account)}`
+  sseSource = new EventSource(url)
+
+  sseSource.addEventListener('open', () => {
+    sseStatus.value = 'connected'
+  })
+
+  // detail 事件：服务端推送的执行详情数据
+  sseSource.addEventListener('detail', (e: MessageEvent) => {
+    try {
+      const dto: PipelineRunDetailDTO = JSON.parse(e.data)
+      if (dto.workflowDetail) {
+        detail.value = dto.workflowDetail
+      }
+      if (dto.taskCodeNameMap) {
+        taskCodeNameMap.value = dto.taskCodeNameMap
+      }
+      loading.value = false
+      // 终态：关闭连接
+      if (TERMINAL_PHASES.has(dto.status)) {
+        closeSse()
+        sseStatus.value = 'disconnected'
+      }
+    } catch {
+      // JSON 解析异常忽略
+    }
+  })
+
+  // error 事件：服务端主动推送的错误（如记录不存在）
+  sseSource.addEventListener('error', (e: MessageEvent) => {
+    if (e.data) {
+      ElMessage.error(e.data)
+      closeSse()
+      sseStatus.value = 'disconnected'
+      loading.value = false
+    }
+  })
+
+  // 连接异常（网络断开等）：EventSource 会自动重连，标记状态给用户提示
+  sseSource.onerror = () => {
+    if (sseSource?.readyState === EventSource.CLOSED) {
+      // 服务端已关闭连接（终态），不需要重连
+      sseStatus.value = 'disconnected'
+    } else {
+      // 浏览器正在自动重连
+      sseStatus.value = 'reconnecting'
+    }
+  }
+}
+
+/** 手动重连：关闭旧连接后重新建立 */
+function reconnect() {
+  connectSse()
+}
 
 // 节点详情抽屉
 const drawerVisible = ref(false)
 const selectedNode = ref<ArgoTaskNode | null>(null)
+
+/** 抽屉基础信息表格数据 */
+const baseInfoRows = computed(() => {
+  const n = selectedNode.value
+  if (!n) return []
+  const rows = [
+    { name: '节点名', value: n.displayName ?? '-' },
+    { name: '状态', value: n.phase ?? '-' },
+    { name: '耗时', value: formatDuration(n.startedAt, n.finishedAt) },
+    { name: '开始时间', value: n.startedAt ? formatDateTime(n.startedAt) : '-' },
+    { name: '结束时间', value: n.finishedAt ? formatDateTime(n.finishedAt) : '-' },
+    { name: '运行节点', value: n.hostNodeName ?? '-' },
+  ]
+  if (n.message) {
+    rows.push({ name: '信息', value: n.message })
+  }
+  return rows
+})
 
 const phaseTagType = (phase?: string) => {
   switch (phase) {
@@ -41,10 +145,20 @@ const phaseTagType = (phase?: string) => {
 }
 
 /** VueFlow 节点/边（节点全集来自静态 DAG 任务定义 + dagre 布局，节点数固定不随运行进度变化） */
-const flow = computed(() => (detail.value ? workflowToFlow(detail.value) : { nodes: [], edges: [] }))
+const flow = computed(() =>
+  detail.value
+    ? workflowToFlow(detail.value, taskCodeNameMap.value)
+    : { nodes: [], edges: [] },
+)
 
-/** 节点全集（静态 DAG 任务定义 + 运行时状态合并），未执行的节点状态为 Waiting（未开始） */
-const allTaskNodes = computed<ArgoTaskNode[]>(() => (detail.value ? buildTaskNodes(detail.value) : []))
+/** 节点全集（静态 DAG 任务定义 + 运行时状态合并），未执行的节点状态为 Waiting（未开始）；displayName 优先使用中文名 */
+const allTaskNodes = computed<ArgoTaskNode[]>(() => {
+  if (!detail.value) return []
+  return buildTaskNodes(detail.value).map((t) => ({
+    ...t,
+    displayName: taskCodeNameMap.value[t.taskName] || t.displayName,
+  }))
+})
 
 /** taskName → 合并后的任务节点，供抽屉/日志展示完整字段 */
 const nodeMap = computed<Map<string, ArgoTaskNode>>(() => {
@@ -54,15 +168,6 @@ const nodeMap = computed<Map<string, ArgoTaskNode>>(() => {
   }
   return map
 })
-
-/** 任务节点列表（信息表）：已开始的按开始时间排序，未开始（Waiting）的按 DAG 声明顺序排在最后 */
-const taskNodes = computed<ArgoTaskNode[]>(() =>
-  [...allTaskNodes.value].sort((a, b) => {
-    const ta = a.startedAt ? new Date(a.startedAt).getTime() : Number.POSITIVE_INFINITY
-    const tb = b.startedAt ? new Date(b.startedAt).getTime() : Number.POSITIVE_INFINITY
-    return ta - tb
-  }),
-)
 
 /** 点击流程节点：打开详情抽屉（e.node.id 即 taskName） */
 const onNodeClick = (e: NodeMouseEvent) => {
@@ -75,14 +180,15 @@ const onNodeClick = (e: NodeMouseEvent) => {
 
 const onPaneReady = () => fitView({ padding: 0.2 })
 
-// ===== 节点日志弹窗 =====
+// ===== 节点日志弹窗（SSE 流式推送） =====
 const logDialogVisible = ref(false)
 const logLoading = ref(false)
-// el-dialog 打开动画是否结束（决定 xterm 能否挂载，避免容器尺寸为 0 导致 fit 算错）
 const dialogOpened = ref(false)
 const logViewerMounted = ref(false)
 const logNodeLabel = ref('')
 const logContent = ref('')
+/** 日志 SSE 连接 */
+let logSseSource: EventSource | null = null
 
 const tryMountViewer = () => {
   if (dialogOpened.value && !logLoading.value && logContent.value && !logViewerMounted.value) {
@@ -90,33 +196,72 @@ const tryMountViewer = () => {
   }
 }
 
+/** 关闭日志 SSE 连接 */
+function closeLogSse() {
+  if (logSseSource) {
+    logSseSource.close()
+    logSseSource = null
+  }
+}
+
 /**
- * 查看节点日志：按 Argo pod-name-format v2 规则用 runtimeId + templateRef.template
- * 拼出 pod name，调后端 /demo/pod/log；失败时回退本地 mock 日志，保证弹窗不为空。
- * 尚未产生运行实例（Waiting）的节点没有 pod，不发起调用。
+ * 查看节点日志：通过 SSE 流式获取，服务端持续推送增量日志。
+ * 终态：一次性推送全部日志后关闭；非终态：follow k8s 日志流，批量推送。
  */
-const onViewLog = async (nodeId: string) => {
+const onViewLog = (nodeId: string) => {
   const node = nodeMap.value.get(nodeId)
-  if (!node?.hasRun || !node.runtimeId) {
+  if (!node?.hasRun) {
     ElMessage.info('该节点尚未执行，暂无日志')
     return
   }
-  const wfName = detail.value?.metadata?.name ?? ''
-  const podName = buildPodName(wfName, { id: node.runtimeId, templateRef: node.templateRef })
   logNodeLabel.value = node.displayName ?? nodeId
   logContent.value = ''
   logViewerMounted.value = false
   logLoading.value = true
   logDialogVisible.value = true
-  try {
-    const res = await getPodLog(podName)
-    logContent.value = res?.data || '（暂无日志）'
-  } catch {
-    ElMessage.warning(`获取「${logNodeLabel.value}」实时日志失败，已展示示例日志`)
-    logContent.value = getNodeLog(node.displayName ?? nodeId)
-  } finally {
-    logLoading.value = false
-    tryMountViewer()
+
+  // 关闭旧的 SSE 连接，建立新的
+  closeLogSse()
+  const account = getAccount() ?? ''
+  const url = `/api/pipeline-run/log/sse?pipelineRunName=${encodeURIComponent(props.name)}&taskCode=${encodeURIComponent(node.taskName)}&x-user-id=${encodeURIComponent(account)}`
+  logSseSource = new EventSource(url)
+
+  // log 事件：增量日志推送
+  logSseSource.addEventListener('log', (e: MessageEvent) => {
+    try {
+      const dto = JSON.parse(e.data)
+      if (dto.content) {
+        logContent.value += dto.content
+      }
+      logLoading.value = false
+      tryMountViewer()
+      // completed=true 表示推送完毕（Pod 结束或终态），关闭连接
+      if (dto.completed) {
+        closeLogSse()
+      }
+    } catch {
+      // JSON 解析异常忽略
+    }
+  })
+
+  // 连接异常：回退 mock 日志
+  logSseSource.onerror = () => {
+    if (logSseSource?.readyState === EventSource.CLOSED) {
+      // 服务端已关闭（正常结束），不需要处理
+      if (!logContent.value) {
+        // 没收到任何数据，可能是节点还没开始执行
+        logContent.value = '（暂无日志）'
+        logLoading.value = false
+        tryMountViewer()
+      }
+    } else if (!logContent.value) {
+      // 连接异常且没有任何数据，回退 mock
+      ElMessage.warning(`获取「${logNodeLabel.value}」日志失败，已展示示例日志`)
+      logContent.value = getNodeLog(node.displayName ?? nodeId)
+      logLoading.value = false
+      tryMountViewer()
+      closeLogSse()
+    }
   }
 }
 
@@ -130,83 +275,71 @@ const onLogDialogClosed = () => {
   logViewerMounted.value = false
   logContent.value = ''
   logLoading.value = false
+  closeLogSse()
 }
 
-async function fetchData() {
-  loading.value = true
-  try {
-    detail.value = await getWorkflowDetail(props.name)
-  } catch {
-    ElMessage.error('流水线详情获取失败')
-    detail.value = null
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(fetchData)
+onMounted(connectSse)
+onUnmounted(() => {
+  closeSse()
+  closeLogSse()
+})
 </script>
 
 <template>
   <div v-loading="loading" class="pipeline-detail">
     <div class="pipeline-detail__header">
-      <el-button :icon="ArrowLeft" link @click="$router.push('/argo/pipelines')">
-        返回列表
-      </el-button>
+      <!-- <el-button :icon="ArrowLeft" link @click="$router.back()">
+        返回
+      </el-button> -->
       <h3 class="title">{{ detail?.metadata?.name ?? name }}</h3>
       <el-tag v-if="detail?.status?.phase" :type="phaseTagType(detail.status.phase)">
         {{ detail.status.phase }}
       </el-tag>
-      <el-button
-        class="refresh"
-        :icon="Refresh"
-        :loading="loading"
+      <!-- SSE 连接状态提示 -->
+      <el-tag v-if="sseStatus === 'reconnecting'" type="warning" size="small">
+        连接断开，正在重连...
+      </el-tag>
+      <!-- <el-button
+        v-if="sseStatus === 'reconnecting' || sseStatus === 'disconnected'"
         size="small"
-        @click="fetchData"
+        type="primary"
+        plain
+        @click="reconnect"
       >
-        刷新
-      </el-button>
+        重新连接
+      </el-button> -->
     </div>
 
     <!-- 基本信息 -->
     <el-descriptions v-if="detail" :column="3" border size="small" class="meta">
-      <el-descriptions-item label="命名空间">
-        {{ detail.metadata?.namespace }}
-      </el-descriptions-item>
-      <el-descriptions-item label="进度">
-        {{ detail.status?.progress ?? '-' }}
-      </el-descriptions-item>
       <el-descriptions-item label="耗时">
         {{ formatDuration(detail.status?.startedAt, detail.status?.finishedAt) }}
       </el-descriptions-item>
       <el-descriptions-item label="开始时间">
         <span v-if="detail.status?.startedAt">
-          {{ formatRelative(detail.status.startedAt) }} {{ formatDateTime(detail.status.startedAt) }}
+          {{ formatDateTime(detail.status.startedAt) }}
         </span>
         <span v-else>-</span>
       </el-descriptions-item>
       <el-descriptions-item label="结束时间">
         <span v-if="detail.status?.finishedAt">
-          {{ formatRelative(detail.status.finishedAt) }} {{ formatDateTime(detail.status.finishedAt) }}
+          {{ formatDateTime(detail.status.finishedAt) }}
         </span>
         <span v-else>-</span>
-      </el-descriptions-item>
-      <el-descriptions-item label="入口模板">
-        {{ detail.spec?.entrypoint ?? '-' }}
       </el-descriptions-item>
     </el-descriptions>
 
     <!-- 节点拓扑（DAG） -->
     <div class="flow-section">
-      <div class="flow-section__title">
-        <el-button-group v-if="flow.nodes.length">
-          <el-button size="small" :icon="ZoomIn" @click="zoomIn()" />
-          <el-button size="small" :icon="ZoomOut" @click="zoomOut()" />
-          <el-button size="small" :icon="FullScreen" @click="fitView({ padding: 0.2 })" />
-        </el-button-group>
-        <h4 class="section-title">节点拓扑</h4>
-      </div>
       <div v-if="flow.nodes.length" class="flow-wrap">
+        <!-- 缩放控制按钮：绝对定位固定在画布左上角，不随拖拽/缩放移动 -->
+        <div class="flow-controls">
+          <el-button-group>
+            <el-button size="small" :icon="ZoomIn" @click="zoomIn()" />
+            <el-button size="small" :icon="ZoomOut" @click="zoomOut()" />
+            <el-button size="small" :icon="FullScreen" @click="fitView({ padding: 0.2 })" />
+          </el-button-group>
+        </div>
         <VueFlow
           :nodes="flow.nodes"
           :edges="flow.edges"
@@ -226,85 +359,41 @@ onMounted(fetchData)
       <el-empty v-else description="暂无节点数据" />
     </div>
 
-    <!-- 节点列表（信息表） -->
-    <h4 class="section-title">节点列表</h4>
-    <el-table :data="taskNodes" border stripe size="small" empty-text="暂无节点数据">
-      <el-table-column label="节点" min-width="200">
-        <template #default="{ row }">
-          {{ row.displayName }}
-        </template>
-      </el-table-column>
-      <el-table-column label="类型" width="100">
-        <template #default="{ row }">
-          {{ row.type ?? '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="110">
-        <template #default="{ row }">
-          <el-tag v-if="row.phase" size="small" :type="phaseTagType(row.phase)">
-            {{ row.phase }}
-          </el-tag>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="进度" width="90">
-        <template #default="{ row }">
-          {{ row.progress ?? '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="耗时" width="100">
-        <template #default="{ row }">
-          {{ formatDuration(row.startedAt, row.finishedAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="开始时间" min-width="240">
-        <template #default="{ row }">
-          <span v-if="row.startedAt">
-            {{ formatRelative(row.startedAt) }} {{ formatDateTime(row.startedAt) }}
-          </span>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-    </el-table>
-
     <!-- 节点详情抽屉 -->
-    <el-drawer v-model="drawerVisible" size="420px" :title="selectedNode?.displayName ?? '节点详情'">
+    <el-drawer v-model="drawerVisible" size="840px" :title="selectedNode?.displayName ?? '节点详情'">
       <template v-if="selectedNode">
-        <el-descriptions :column="1" border size="small">
-          <el-descriptions-item label="节点名">
-            {{ selectedNode.displayName }}
-          </el-descriptions-item>
-          <el-descriptions-item label="类型">
-            {{ selectedNode.type ?? '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag v-if="selectedNode.phase" size="small" :type="phaseTagType(selectedNode.phase)">
-              {{ selectedNode.phase }}
-            </el-tag>
-            <span v-else>-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="进度">
-            {{ selectedNode.progress ?? '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="耗时">
-            {{ formatDuration(selectedNode.startedAt, selectedNode.finishedAt) }}
-          </el-descriptions-item>
-          <el-descriptions-item label="开始时间">
-            {{ selectedNode.startedAt ? formatDateTime(selectedNode.startedAt) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="结束时间">
-            {{ selectedNode.finishedAt ? formatDateTime(selectedNode.finishedAt) : '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="运行节点">
-            {{ selectedNode.hostNodeName ?? '-' }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="selectedNode.templateRef" label="引用模板">
-            {{ selectedNode.templateRef.name }} / {{ selectedNode.templateRef.template }}
-          </el-descriptions-item>
-          <el-descriptions-item v-if="selectedNode.message" label="信息">
-            {{ selectedNode.message }}
-          </el-descriptions-item>
-        </el-descriptions>
+        <div class="drawer-body">
+          <!-- 基础信息 -->
+          <div class="param-section">
+            <h5 class="param-title">基础信息</h5>
+            <el-table :data="baseInfoRows" border size="small">
+              <el-table-column prop="name" label="Name" min-width="80" />
+              <el-table-column prop="value" label="Value" min-width="260" show-overflow-tooltip />
+            </el-table>
+          </div>
+
+          <!-- 入参 -->
+          <div v-if="selectedNode.inputs?.parameters?.length" class="param-section">
+            <h5 class="param-title">入参</h5>
+            <el-table :data="selectedNode.inputs.parameters" border size="small">
+              <el-table-column prop="name" label="Name" min-width="80" />
+              <el-table-column prop="value" label="Value" min-width="260" show-overflow-tooltip>
+                <template #default="{ row }">
+                  {{ row.value ?? row.default ?? '-' }}
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 出参 -->
+          <div v-if="selectedNode.outputs?.parameters?.length" class="param-section">
+            <h5 class="param-title">出参</h5>
+            <el-table :data="selectedNode.outputs.parameters" border size="small">
+              <el-table-column prop="name" label="Name" min-width="80" />
+              <el-table-column prop="value" label="Value" min-width="260" show-overflow-tooltip />
+            </el-table>
+          </div>
+        </div>
       </template>
     </el-drawer>
 
@@ -327,7 +416,11 @@ onMounted(fetchData)
 
 <style scoped>
 .pipeline-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   padding: 16px 20px;
+  box-sizing: border-box;
 }
 
 .pipeline-detail__header {
@@ -353,29 +446,29 @@ onMounted(fetchData)
 }
 
 .flow-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   margin-bottom: 20px;
 }
 
-.flow-section__title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.section-title {
-  margin: 0 0 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
 .flow-wrap {
-  height: 420px;
+  flex: 1;
+  min-height: 0;
   width: 100%;
   border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
+}
+
+/* 缩放控制按钮：固定在画布左上角，悬浮于节点之上，不随画布拖拽/缩放移动 */
+.flow-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
 }
 
 /* 日志弹窗主体：固定高度，仅让 xterm 内部滚动 */
@@ -383,6 +476,28 @@ onMounted(fetchData)
   height: 70vh;
   overflow: hidden;
   border-radius: 4px;
+}
+
+/* 抽屉内容支持滚动 */
+.drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-top: -24px;
+}
+
+.param-section {
+  margin-top: 4px;
+}
+
+.param-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
 }
 </style>
 
