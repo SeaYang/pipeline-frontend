@@ -8,21 +8,24 @@ const router = useRouter()
 const handleMenuClick = (index: string) => {
   switch (index) {
     case '1-1':
-      router.push('/app-list')
+      router.push('/pipeline/list')
       break
     case '2-1':
-      router.push('/argo-flow')
-      break
-    case '2-2':
-      router.push('/dict/type')
-      break
-    case '2-3':
-      router.push('/task-template')
-      break
-    case '2-4':
-      router.push('/pipeline-template')
+      router.push('/app-list')
       break
     case '3-1':
+      router.push('/argo-flow')
+      break
+    case '3-2':
+      router.push('/dict/type')
+      break
+    case '3-3':
+      router.push('/task-template')
+      break
+    case '3-4':
+      router.push('/pipeline-template')
+      break
+    case '4-1':
       router.push('/argo/pipelines')
       break
   }
@@ -43,32 +46,39 @@ const handleMenuClick = (index: string) => {
     <el-menu
       :collapse="isCollapse"
       :collapse-transition="false"
-      :default-openeds="['1', '2', '3']"
+      :default-openeds="['1', '2', '3', '4']"
       @select="handleMenuClick"
     >
       <el-sub-menu index="1">
         <template #title>
+          <el-icon><Connection /></el-icon>
+          <span>流水线</span>
+        </template>
+        <el-menu-item index="1-1">流水线列表</el-menu-item>
+      </el-sub-menu>
+      <el-sub-menu index="2">
+        <template #title>
           <el-icon><InfoFilled /></el-icon>
           <span>应用信息</span>
         </template>
-        <el-menu-item index="1-1">应用列表</el-menu-item>
+        <el-menu-item index="2-1">应用列表</el-menu-item>
       </el-sub-menu>
-      <el-sub-menu index="2">
+      <el-sub-menu index="3">
         <template #title>
           <el-icon><Setting /></el-icon>
           <span>后台配置</span>
         </template>
-        <el-menu-item index="2-1">流水线详情</el-menu-item>
-        <el-menu-item index="2-2">字典配置</el-menu-item>
-        <el-menu-item index="2-3">任务模板</el-menu-item>
-        <el-menu-item index="2-4">流水线模板</el-menu-item>
+        <el-menu-item index="3-1">流水线详情</el-menu-item>
+        <el-menu-item index="3-2">字典配置</el-menu-item>
+        <el-menu-item index="3-3">任务模板</el-menu-item>
+        <el-menu-item index="3-4">流水线模板</el-menu-item>
       </el-sub-menu>
-      <el-sub-menu index="3">
+      <el-sub-menu index="4">
         <template #title>
           <el-icon><DataBoard /></el-icon>
           <span>Argo后台管理</span>
         </template>
-        <el-menu-item index="3-1">流水线页面</el-menu-item>
+        <el-menu-item index="4-1">流水线页面</el-menu-item>
       </el-sub-menu>
     </el-menu>
   </el-aside>

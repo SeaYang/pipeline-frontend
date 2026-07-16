@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { pageAppInfo, type AppInfo, type AppInfoQuery } from '@/api/appInfo'
 import { formatDateTime } from '@/utils/time'
+
+const router = useRouter()
+
+/** 点击应用名称 → 进入该 appName 维度的流水线列表 */
+function goPipeline(appName: string) {
+  router.push(`/pipeline/list/${encodeURIComponent(appName)}`)
+}
 
 const loading = ref(false)
 const list = ref<AppInfo[]>([])
@@ -98,7 +106,13 @@ onMounted(fetchData)
       @sort-change="handleSortChange"
     >
       <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="应用名称" prop="appName" min-width="160" sortable="custom" />
+      <el-table-column label="应用名称" prop="appName" min-width="160" sortable="custom">
+        <template #default="{ row }">
+          <el-link type="primary" :underline="false" @click="goPipeline(row.appName)">
+            {{ row.appName }}
+          </el-link>
+        </template>
+      </el-table-column>
       <el-table-column
         label="编程语言"
         prop="programmingLanguage"

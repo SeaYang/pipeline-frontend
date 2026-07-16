@@ -12,7 +12,7 @@ import SimpleTaskNode from './SimpleTaskNode.vue'
  * - 数据格式与「流水线执行详情」一致（同为 Argo Workflow 的 spec 结构），仅展示更简。
  * - 仅做可视化，内容编辑请切回 YAML/JSON。
  */
-const props = defineProps<{ detail?: string }>()
+const props = defineProps<{ detail?: string; interactive?: boolean }>()
 
 const { fitView } = useVueFlow()
 
@@ -54,9 +54,14 @@ const onPaneReady = () => fitView({ padding: 0.2 })
       :edges="view.edges"
       :default-edge-options="{ type: 'smoothstep' }"
       fit-view-on-init
-      :zoom-on-scroll="false"
-      :zoom-on-pinch="false"
+      :zoom-on-scroll="interactive"
+      :zoom-on-pinch="interactive"
+      :zoom-on-double-click="interactive"
+      :pan-on-drag="interactive"
       :nodes-draggable="false"
+      :nodes-connectable="false"
+      :elements-selectable="false"
+      :prevent-scrolling="interactive"
       @pane-ready="onPaneReady"
     >
       <template #node-argo="nodeProps">

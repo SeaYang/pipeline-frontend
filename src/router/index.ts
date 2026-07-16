@@ -16,7 +16,36 @@ const router = createRouter({
       path: '/',
       component: () => import('@/layouts/DefaultLayout.vue'),
       children: [
-        { path: '', redirect: '/argo-flow' },
+        { path: '', redirect: '/app-list' },
+        {
+          // 流水线列表：以 appName 为维度，进入菜单时无 appName，由页面顶部下拉选择后写入路由
+          path: 'pipeline/list/:appName?',
+          name: 'pipeline-list',
+          component: () => import('@/views/pipeline/PipelineList.vue'),
+        },
+        {
+          // 最近运行 / 运行历史：同一流水线的运行信息，以 tab 形式共享父路由，各 tab 是独立子路由
+          path: 'pipeline/:pipelineId/run',
+          component: () => import('@/views/pipeline/PipelineRunTabs.vue'),
+          props: true,
+          redirect: (to) => `/pipeline/${to.params.pipelineId}/run/latest`,
+          children: [
+            {
+              // 最近运行：查询流水线最近一次执行记录，拿到 workflowName 后在本路由内直接展示 vue-flow（不跳转 /argo/pipelines/{name}）
+              path: 'latest',
+              name: 'pipeline-latest-run',
+              component: () => import('@/views/pipeline/PipelineLatestRun.vue'),
+              props: true,
+            },
+            {
+              // 运行历史：分页展示流水线的执行记录列表
+              path: 'history',
+              name: 'pipeline-run-history',
+              component: () => import('@/views/pipeline/PipelineRunHistory.vue'),
+              props: true,
+            },
+          ],
+        },
         {
           path: 'argo-flow',
           name: 'argo-flow',
