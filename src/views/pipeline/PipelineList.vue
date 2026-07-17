@@ -285,7 +285,7 @@ async function submitExecute() {
     ElMessage.success(`执行成功，工作流：${res.workflowName}`)
     execVisible.value = false
     // 执行成功后跳转进入流水线执行详情页
-    router.push(`/argo/pipelines/${encodeURIComponent(res.workflowName)}`)
+    router.push(`/pipeline/execute-detail/${encodeURIComponent(res.workflowName)}`)
   } catch (e) {
     ElMessage.error((e as Error)?.message || '执行失败')
   } finally {

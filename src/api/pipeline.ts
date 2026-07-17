@@ -265,3 +265,40 @@ export async function getLatestPipelineRun(pipelineId: number): Promise<Pipeline
   }
   return res.data ?? null
 }
+
+/** 流水线执行快照响应（对应后端 PipelineRunSnapshotResponse） */
+export interface PipelineRunSnapshot {
+  /** 流水线执行记录 id */
+  pipelineRunId: number
+  /** 执行详情快照 JSON 字符串 */
+  detail: string
+}
+
+/** 查询流水线执行快照：GET /pipeline-run/{id}/snapshot */
+export async function getPipelineRunSnapshot(pipelineRunId: number): Promise<PipelineRunSnapshot> {
+  const res = await request.get<unknown, ApiResult<PipelineRunSnapshot>>(
+    `/pipeline-run/${pipelineRunId}/snapshot`,
+  )
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '执行快照获取失败')
+  }
+  return res.data
+}
+
+/** 重试流水线执行（仅 Failed / Error 可重试）：POST /pipeline-run/{id}/retry */
+export async function retryPipelineRun(id: number): Promise<PipelineRun> {
+  const res = await request.post<unknown, ApiResult<PipelineRun>>(`/pipeline-run/${id}/retry`)
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '重试失败')
+  }
+  return res.data
+}
+
+/** 停止流水线执行（终止 Argo Workflow 并置为 Cancelled）：POST /pipeline-run/{id}/stop */
+export async function stopPipelineRun(id: number): Promise<PipelineRun> {
+  const res = await request.post<unknown, ApiResult<PipelineRun>>(`/pipeline-run/${id}/stop`)
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '停止失败')
+  }
+  return res.data
+}
