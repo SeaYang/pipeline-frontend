@@ -1,23 +1,33 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
 import { type ArgoWorkflowDetail, type PipelineRunDetailDTO } from '@/api/argo'
 import { workflowToFlow, buildTaskNodes, type ArgoTaskNode } from '@/utils/workflowFlow'
 import { getAccount } from '@/utils/auth'
 import { getNodeLog } from '@/data/nodeLogs'
 import { formatDateTime, formatDuration } from '@/utils/time'
+import {
+  getPipelineRunSnapshot,
+  retryPipelineRun,
+  stopPipelineRun,
+} from '@/api/pipeline'
 import PipelineFlowNode from '@/components/flow/PipelineFlowNode.vue'
 import XtermLogViewer from '@/components/flow/XtermLogViewer.vue'
+import CodeEditor from '@/components/common/CodeEditor.vue'
 
 const props = defineProps<{ name: string }>()
 
+const router = useRouter()
 const { fitView, zoomIn, zoomOut } = useVueFlow()
 
 const loading = ref(true)
 const detail = ref<ArgoWorkflowDetail | null>(null)
 const taskCodeNameMap = ref<Record<string, string>>({})
+/** SSE 推送的完整 DTO（含 appName / 模板 / 执行人等扩展字段） */
+const runDto = ref<PipelineRunDetailDTO | null>(null)
 
 // ===== SSE 连接管理 =====
 /** SSE 连接状态：connected / reconnecting / disconnected */
@@ -41,7 +51,7 @@ function closeSse() {
 
 /**
  * 建立 SSE 连接，订阅执行详情推送。
- * - 收到 detail 事件：更新 detail + taskCodeNameMap；终态时自动关闭连接
+ * - 收到 detail 事件：更新 detail + taskCodeNameMap + runDto；终态时自动关闭连接
  * - 收到 error 事件 / 连接异常：标记重连状态，浏览器 EventSource 会自动重连
  * - 页面离开时手动 close() 释放资源
  */
@@ -60,6 +70,7 @@ function connectSse() {
   sseSource.addEventListener('detail', (e: MessageEvent) => {
     try {
       const dto: PipelineRunDetailDTO = JSON.parse(e.data)
+      runDto.value = dto
       if (dto.workflowDetail) {
         detail.value = dto.workflowDetail
       }
@@ -102,6 +113,125 @@ function connectSse() {
 /** 手动重连：关闭旧连接后重新建立 */
 function reconnect() {
   connectSse()
+}
+
+// ===== 重试 / 停止操作 =====
+const actionLoading = ref(false)
+
+/** 当前执行状态 phase */
+const currentPhase = computed(() => detail.value?.status?.phase ?? runDto.value?.status ?? '')
+
+/** 是否失败态（展示重试 + 停止按钮） */
+const isFailure = computed(() => currentPhase.value === 'Failed' || currentPhase.value === 'Error')
+
+/** 是否终态（不展示任何按钮） */
+const isTerminal = computed(() => currentPhase.value === 'Succeeded' || currentPhase.value === 'Cancelled')
+
+/** 重试执行 */
+async function handleRetry() {
+  const runId = runDto.value?.pipelineRunId
+  if (!runId) {
+    ElMessage.warning('缺少执行记录 id，无法重试')
+    return
+  }
+  try {
+    await ElMessageBox.confirm('确定要重试该流水线执行吗？', '重试确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  actionLoading.value = true
+  try {
+    await retryPipelineRun(runId)
+    ElMessage.success('重试已触发')
+    // 重新建立 SSE 连接，获取最新状态
+    connectSse()
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || '重试失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+/** 停止执行 */
+async function handleStop() {
+  const runId = runDto.value?.pipelineRunId
+  if (!runId) {
+    ElMessage.warning('缺少执行记录 id，无法停止')
+    return
+  }
+  try {
+    await ElMessageBox.confirm('确定要停止该流水线执行吗？', '停止确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  actionLoading.value = true
+  try {
+    await stopPipelineRun(runId)
+    ElMessage.success('停止已触发')
+    connectSse()
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || '停止失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+/** 点击 appName 跳转到对应流水线列表 */
+function goAppPipeline(appName?: string) {
+  if (!appName) return
+  router.push(`/pipeline/list/${encodeURIComponent(appName)}`)
+}
+
+// ===== 运行参数弹窗（直接从 SSE 推送的 arguments 解析，无需请求接口） =====
+const argsDialogVisible = ref(false)
+/** 运行参数表格数据：{ name, value }[] */
+const argsRows = ref<{ name: string; value: string }[]>([])
+
+/** 查看运行参数：直接从 runDto.arguments 解析 JSON，表格展示 */
+function openArguments() {
+  const raw = runDto.value?.arguments
+  if (!raw) {
+    argsRows.value = []
+  } else {
+    try {
+      const obj = JSON.parse(raw) as Record<string, string>
+      argsRows.value = Object.entries(obj).map(([name, value]) => ({ name, value }))
+    } catch {
+      argsRows.value = []
+    }
+  }
+  argsDialogVisible.value = true
+}
+
+// ===== 执行快照弹窗（请求快照接口，编辑器展示完整 JSON） =====
+const snapshotDialogVisible = ref(false)
+const snapshotLoading = ref(false)
+/** 执行快照 JSON 字符串（格式化后） */
+const snapshotContent = ref('')
+
+/** 查看执行快照：调快照接口取完整 Workflow CRD JSON，编辑器展示 */
+async function openSnapshot() {
+  const runId = runDto.value?.pipelineRunId
+  if (!runId) {
+    ElMessage.warning('缺少执行记录 id，无法获取执行快照')
+    return
+  }
+  snapshotDialogVisible.value = true
+  snapshotLoading.value = true
+  snapshotContent.value = ''
+  try {
+    const res = await getPipelineRunSnapshot(runId)
+    try {
+      snapshotContent.value = JSON.stringify(JSON.parse(res.detail), null, 2)
+    } catch {
+      snapshotContent.value = res.detail
+    }
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || '执行快照获取失败')
+    snapshotContent.value = ''
+  } finally {
+    snapshotLoading.value = false
+  }
 }
 
 // 节点详情抽屉
@@ -287,31 +417,58 @@ onUnmounted(() => {
 
 <template>
   <div v-loading="loading" class="pipeline-detail">
+    <!-- 顶部信息栏：执行名称 + 状态 + 扩展字段 + 操作按钮 -->
     <div class="pipeline-detail__header">
-      <!-- <el-button :icon="ArrowLeft" link @click="$router.back()">
-        返回
-      </el-button> -->
-      <h3 class="title">{{ detail?.metadata?.name ?? name }}</h3>
-      <el-tag v-if="detail?.status?.phase" :type="phaseTagType(detail.status.phase)">
-        {{ detail.status.phase }}
-      </el-tag>
-      <!-- SSE 连接状态提示 -->
-      <el-tag v-if="sseStatus === 'reconnecting'" type="warning" size="small">
-        连接断开，正在重连...
-      </el-tag>
-      <!-- <el-button
-        v-if="sseStatus === 'reconnecting' || sseStatus === 'disconnected'"
-        size="small"
-        type="primary"
-        plain
-        @click="reconnect"
-      >
-        重新连接
-      </el-button> -->
+      <div class="header-left">
+        <h3 class="title">{{ detail?.metadata?.name ?? name }}</h3>
+        <el-tag v-if="detail?.status?.phase" :type="phaseTagType(detail.status.phase)">
+          {{ detail.status.phase }}
+        </el-tag>
+        <!-- SSE 连接状态提示 -->
+        <el-tag v-if="sseStatus === 'reconnecting'" type="warning" size="small">
+          连接断开，正在重连...
+        </el-tag>
+      </div>
+      <!-- 操作按钮：终态不展示；失败态展示重试+停止；其它态展示停止 -->
+      <div v-if="!isTerminal" class="header-actions">
+        <el-button
+          v-if="isFailure"
+          type="primary"
+          size="small"
+          :loading="actionLoading"
+          @click="handleRetry"
+        >
+          重试
+        </el-button>
+        <el-button
+          type="danger"
+          size="small"
+          plain
+          :loading="actionLoading"
+          @click="handleStop"
+        >
+          终止
+        </el-button>
+      </div>
     </div>
 
-    <!-- 基本信息 -->
+    <!-- 基本信息：扩展字段 + 耗时/时间 -->
     <el-descriptions v-if="detail" :column="3" border size="small" class="meta">
+      <el-descriptions-item label="应用">
+        <a v-if="runDto?.appName" class="link" @click="goAppPipeline(runDto.appName)">
+          {{ runDto.appName }}
+        </a>
+        <span v-else>-</span>
+      </el-descriptions-item>
+      <el-descriptions-item label="流水线">
+        {{ runDto?.pipelineName ?? '-' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="模板">
+        {{ runDto?.pipelineTemplateName ?? runDto?.pipelineTemplateCode ?? '-' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="执行人">
+        {{ runDto?.creator ?? '-' }}
+      </el-descriptions-item>
       <el-descriptions-item label="耗时">
         {{ formatDuration(detail.status?.startedAt, detail.status?.finishedAt) }}
       </el-descriptions-item>
@@ -326,6 +483,12 @@ onUnmounted(() => {
           {{ formatDateTime(detail.status.finishedAt) }}
         </span>
         <span v-else>-</span>
+      </el-descriptions-item>
+      <el-descriptions-item label="运行参数">
+        <el-button link type="primary" size="small" @click="openArguments">查看</el-button>
+      </el-descriptions-item>
+      <el-descriptions-item label="执行快照">
+        <el-button link type="primary" size="small" @click="openSnapshot">查看</el-button>
       </el-descriptions-item>
     </el-descriptions>
 
@@ -411,6 +574,39 @@ onUnmounted(() => {
         <XtermLogViewer v-if="logViewerMounted" :content="logContent" />
       </div>
     </el-dialog>
+
+    <!-- 运行参数弹窗（表格展示 key-value） -->
+    <el-dialog
+      v-model="argsDialogVisible"
+      title="运行参数"
+      width="50%"
+      top="12vh"
+      destroy-on-close
+    >
+      <el-table :data="argsRows" border stripe size="small" empty-text="暂无运行参数">
+        <el-table-column prop="name" label="参数名" min-width="160" />
+        <el-table-column prop="value" label="参数值" min-width="240" show-overflow-tooltip />
+      </el-table>
+    </el-dialog>
+
+    <!-- 执行快照弹窗（Monaco JSON 只读编辑器） -->
+    <el-dialog
+      v-model="snapshotDialogVisible"
+      title="执行快照"
+      width="60%"
+      top="10vh"
+      destroy-on-close
+    >
+      <div class="log-dialog-body" v-loading="snapshotLoading">
+        <CodeEditor
+          v-if="!snapshotLoading"
+          v-model="snapshotContent"
+          language="json"
+          height="60vh"
+          read-only
+        />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -426,8 +622,21 @@ onUnmounted(() => {
 .pipeline-detail__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .title {
@@ -435,6 +644,16 @@ onUnmounted(() => {
   font-size: 18px;
   font-weight: 600;
   color: var(--el-text-color-primary);
+}
+
+.link {
+  color: var(--el-color-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
 }
 
 .refresh {

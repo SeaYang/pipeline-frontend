@@ -183,11 +183,25 @@ export async function getExecuteDetail(pipelineRunName: string): Promise<Pipelin
 /** SSE 推送的执行详情 DTO（和后端 PipelineRunDetailDTO 对应） */
 export interface PipelineRunDetailDTO {
   pipelineRunName: string
+  /** 流水线执行记录主键 id */
+  pipelineRunId?: number
   status: string
   startedAt?: string
   finishedAt?: string
   duration?: number
   failMessage?: string
+  /** 服务 appName */
+  appName?: string
+  /** 流水线模板编码 */
+  pipelineTemplateCode?: string
+  /** 流水线模板名称 */
+  pipelineTemplateName?: string
+  /** 执行人 */
+  creator?: string
+  /** 流水线名称 */
+  pipelineName?: string
+  /** 运行参数 JSON 字符串 */
+  arguments?: string
   /** VueFlow 渲染数据（结构兼容 ArgoWorkflowDetail） */
   workflowDetail: ArgoWorkflowDetail
   /** 任务编码→中文名 */

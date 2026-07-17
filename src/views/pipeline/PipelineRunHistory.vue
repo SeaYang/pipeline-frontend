@@ -54,7 +54,7 @@ function handleSizeChange() {
 /** 点击 id / name 进入流水线执行详情（vue-flow），按 name（即 workflowName）展示 */
 function goDetail(name?: string) {
   if (!name) return
-  router.push(`/argo/pipelines/${encodeURIComponent(name)}`)
+  router.push(`/pipeline/execute-detail/${encodeURIComponent(name)}`)
 }
 
 onMounted(loadList)

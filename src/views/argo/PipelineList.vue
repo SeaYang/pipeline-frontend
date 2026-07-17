@@ -62,7 +62,7 @@ onMounted(fetchData)
           <router-link
             v-if="row.metadata?.name"
             class="name-link"
-            :to="`/argo/pipelines/${encodeURIComponent(row.metadata.name)}`"
+            :to="`/pipeline/execute-detail/${encodeURIComponent(row.metadata.name)}`"
           >
             {{ row.metadata.name }}
           </router-link>
