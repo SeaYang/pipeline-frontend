@@ -142,26 +142,28 @@ watch(
 )
 
 /**
- * 调用后端刷新接口，更新受影响的参数值和选项。
+ * 调用后端刷新接口，全量更新参数值和选项。
  */
 async function doRefresh(changedParamName: string) {
   refreshing.value = true
   try {
-    const affected = await refreshRunParameters({
+    const allParams = await refreshRunParameters({
       pipelineId: props.pipelineId,
       changedParamName,
       currentValues: { ...values },
     })
-    // 局部更新受影响的参数
-    for (const updated of affected) {
-      // 更新参数定义（选项等）
-      const idx = params.value.findIndex((p) => p.name === updated.name)
-      if (idx >= 0) {
-        params.value[idx] = updated
-      }
-      // 更新参数值（仅当后端返回了新值时）
-      if (updated.value != null && updated.value !== '') {
-        values[updated.name] = updated.value
+    // 全量替换参数列表
+    params.value = allParams
+    // 全量重建参数值
+    Object.keys(values).forEach((k) => delete values[k])
+    for (const p of allParams) {
+      if (p.value != null && p.value !== '') {
+        values[p.name] = p.value
+      } else if (p.options && p.options.length > 0) {
+        const defaultOpt = p.options.find((o) => o.asDefault)
+        values[p.name] = defaultOpt?.value ?? ''
+      } else {
+        values[p.name] = ''
       }
     }
     // 更新快照
