@@ -75,16 +75,41 @@ export interface PipelineTemplateOption {
   templateDetail?: string
 }
 
-/** 流水线模板参数（对应后端 WorkflowParameterResponse，argo arguments.parameters 单项） */
-export interface WorkflowParameter {
-  /** 参数名 */
+/** 执行弹框参数项（对应后端 PipelineRunParameterResponse） */
+export interface RunParameter {
   name: string
-  /** 参数值（可能为空） */
-  value?: string
-  /** 参数默认值（可能为空） */
-  defaultValue?: string
-  /** 参数描述 */
+  label: string
   description?: string
+  componentType?: string
+  paramType?: string
+  required?: boolean
+  refreshOnChanged?: boolean
+  regexPattern?: string
+  paramGroup?: string
+  paramGroupSort?: number
+  /** 当前值（已计算） */
+  value?: string
+  /** 可见选项（select / radio 用） */
+  options?: RunParameterOption[]
+  /** 是否隐藏 */
+  hidden?: boolean
+}
+
+/** 执行弹框参数选项项 */
+export interface RunParameterOption {
+  value: string
+  label?: string
+  asDefault?: boolean
+  /** 选项显示条件，为 null/undefined 表示无条件显示；非空时需所有条件匹配才显示 */
+  parameterDepends?: OptionDepend[] | null
+}
+
+/** 选项显示条件项 */
+export interface OptionDepend {
+  /** 依赖的参数名 */
+  name: string
+  /** 依赖参数需等于该值时，本选项才显示 */
+  value: string
 }
 
 // ============ 流水线实例 接口（/pipeline） ============
@@ -146,13 +171,46 @@ export async function listPipelineTemplates(appName: string): Promise<PipelineTe
   return res.data
 }
 
-/** 流水线模板参数列表：GET /pipeline/{pipelineId}/parameters */
-export async function listPipelineParameters(pipelineId: number): Promise<WorkflowParameter[]> {
-  const res = await request.get<unknown, ApiResult<WorkflowParameter[]>>(
-    `/pipeline/${pipelineId}/parameters`,
+/** 流水线执行参数请求体 */
+export interface PipelineParametersRequest {
+  /** 流水线 ID */
+  pipelineId: number
+  /** 前端/第三方已传入的参数值（key=参数名），可选 */
+  currentValues?: Record<string, string>
+}
+
+/** 流水线执行参数列表（从参数定义表解析）：POST /pipeline/parameters */
+export async function listRunParameters(dto: PipelineParametersRequest): Promise<RunParameter[]> {
+  const res = await request.post<unknown, ApiResult<RunParameter[]>>(
+    '/pipeline/parameters',
+    dto,
   )
   if (res.code !== 200 || !res.data) {
     throw new Error(res.message || '流水线参数获取失败')
+  }
+  return res.data
+}
+
+/** 参数刷新请求体 */
+export interface PipelineParametersRefresh {
+  /** 流水线 ID */
+  pipelineId: number
+  /** 变动的参数名 */
+  changedParamName: string
+  /** 当前所有参数值（key=参数名） */
+  currentValues: Record<string, string>
+}
+
+/** 刷新流水线执行参数（参数联动刷新）：POST /pipeline/parameters/refresh */
+export async function refreshRunParameters(
+  dto: PipelineParametersRefresh,
+): Promise<RunParameter[]> {
+  const res = await request.post<unknown, ApiResult<RunParameter[]>>(
+    '/pipeline/parameters/refresh',
+    dto,
+  )
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '参数刷新失败')
   }
   return res.data
 }
