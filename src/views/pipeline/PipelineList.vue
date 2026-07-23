@@ -9,16 +9,14 @@ import {
   updatePipeline,
   deletePipeline,
   listPipelineTemplates,
-  listPipelineParameters,
-  executePipeline,
   type Pipeline,
   type PipelineQuery,
   type PipelineTemplateOption,
-  type WorkflowParameter,
 } from '@/api/pipeline'
 import { pageAppInfo } from '@/api/appInfo'
 import { formatDateTime } from '@/utils/time'
 import TemplateFlowPreview from '@/components/flow/TemplateFlowPreview.vue'
+import PipelineExecuteDialog from './components/PipelineExecuteDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -245,52 +243,19 @@ function openPreview(t: PipelineTemplateOption, e: Event) {
   previewVisible.value = true
 }
 
-// ============ 执行流水线（展示 parameters → execute） ============
+// ============ 执行流水线（PipelineExecuteDialog 组件） ============
 
 const execVisible = ref(false)
-const execLoading = ref(false)
-const execSubmitting = ref(false)
 const execPipelineId = ref<number>(0)
-const execParams = ref<WorkflowParameter[]>([])
-/** 参数表单值，key 为参数名 */
-const execValues = reactive<Record<string, string>>({})
 
-async function openExecute(row: Pipeline) {
+function openExecute(row: Pipeline) {
   execPipelineId.value = row.id!
   execVisible.value = true
-  execParams.value = []
-  Object.keys(execValues).forEach((k) => delete execValues[k])
-  execLoading.value = true
-  try {
-    const params = await listPipelineParameters(row.id!)
-    execParams.value = params
-    // 默认值优先 defaultValue，回退 value，再回退空串
-    params.forEach((p) => {
-      execValues[p.name] = p.defaultValue ?? p.value ?? ''
-    })
-  } catch (e) {
-    ElMessage.error((e as Error)?.message || '流水线参数获取失败')
-  } finally {
-    execLoading.value = false
-  }
 }
 
-async function submitExecute() {
-  execSubmitting.value = true
-  try {
-    const res = await executePipeline({
-      pipelineId: execPipelineId.value,
-      parameters: { ...execValues },
-    })
-    ElMessage.success(`执行成功，工作流：${res.workflowName}`)
-    execVisible.value = false
-    // 执行成功后跳转进入流水线执行详情页
-    router.push(`/pipeline/execute-detail/${encodeURIComponent(res.workflowName)}`)
-  } catch (e) {
-    ElMessage.error((e as Error)?.message || '执行失败')
-  } finally {
-    execSubmitting.value = false
-  }
+function onExecuteSuccess(workflowName: string) {
+  // 执行成功后跳转进入流水线执行详情页
+  router.push(`/pipeline/execute-detail/${encodeURIComponent(workflowName)}`)
 }
 
 onMounted(() => {
@@ -462,37 +427,12 @@ onMounted(() => {
       </div>
     </el-dialog>
 
-    <!-- 执行流水线弹框：动态参数表单 -->
-    <el-dialog v-model="execVisible" title="执行流水线" width="730px" destroy-on-close>
-      <el-form v-loading="execLoading" label-width="160px" class="exec-form">
-        <el-empty
-          v-if="!execLoading && !execParams.length"
-          description="该流水线无运行参数"
-          :image-size="60"
-        />
-        <el-form-item v-for="p in execParams" :key="p.name">
-          <template #label>
-            <el-tooltip
-              v-if="p.description"
-              :content="p.description"
-              placement="top"
-              :disabled="!p.description"
-            >
-              <span class="param-label">
-                {{ p.name }}
-                <el-icon class="param-label__icon"><InfoFilled /></el-icon>
-              </span>
-            </el-tooltip>
-            <span v-else>{{ p.name }}</span>
-          </template>
-          <el-input v-model="execValues[p.name]" :placeholder="`请输入 ${p.name}`" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="execVisible = false">取消</el-button>
-        <el-button type="primary" :loading="execSubmitting" @click="submitExecute">执行</el-button>
-      </template>
-    </el-dialog>
+    <!-- 执行流水线弹框（差异化渲染组件） -->
+    <PipelineExecuteDialog
+      v-model="execVisible"
+      :pipeline-id="execPipelineId"
+      @success="onExecuteSuccess"
+    />
   </div>
 </template>
 
@@ -641,21 +581,5 @@ onMounted(() => {
   height: 100%;
 }
 
-/* ===== 执行流水线：参数表单 ===== */
-
-.exec-form {
-  min-height: 80px;
-}
-
-.param-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  cursor: help;
-}
-
-.param-label__icon {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-}
+/* ===== 执行流水线：参数表单（已抽离到 PipelineExecuteDialog 组件） ===== */
 </style>

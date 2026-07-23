@@ -30,7 +30,7 @@ onMounted(fetchPipelineName)
 <template>
   <div class="pipeline-run-tabs">
     <div class="header">
-      <el-button link @click="router.push('/pipeline/list')">返回</el-button>
+      <!-- <el-button link @click="router.push('/pipeline/list')">返回</el-button> -->
       <h3 class="title">{{ pipelineName || `流水线 #${pipelineId}` }}</h3>
     </div>
 

@@ -122,9 +122,17 @@ export async function listPipelineTemplateGroups(): Promise<DictData[]> {
 
 // ============ 流水线模板版本 接口（/pipeline-template/version） ============
 
+/** 保存响应（新增/修改通用）：含版本详情和未定义参数列表 */
+export interface PipelineTemplateVersionSaveResponse {
+  /** 保存成功时返回的版本详情；存在未定义参数时为 null */
+  version?: PipelineTemplateVersion
+  /** 未在参数定义表中配置的参数名列表；为空/undefined 表示全部已定义 */
+  undefinedParams?: string[]
+}
+
 /** 新增流水线模板版本：POST /pipeline-template/version */
-export async function createVersion(dto: PipelineTemplateVersion): Promise<PipelineTemplateVersion> {
-  const res = await request.post<unknown, ApiResult<PipelineTemplateVersion>>(
+export async function createVersion(dto: PipelineTemplateVersion): Promise<PipelineTemplateVersionSaveResponse> {
+  const res = await request.post<unknown, ApiResult<PipelineTemplateVersionSaveResponse>>(
     '/pipeline-template/version',
     dto,
   )
@@ -135,8 +143,8 @@ export async function createVersion(dto: PipelineTemplateVersion): Promise<Pipel
 }
 
 /** 修改流水线模板版本（仅 templateDetail / changeNote）：PUT /pipeline-template/version */
-export async function updateVersion(dto: PipelineTemplateVersion): Promise<PipelineTemplateVersion> {
-  const res = await request.put<unknown, ApiResult<PipelineTemplateVersion>>(
+export async function updateVersion(dto: PipelineTemplateVersion): Promise<PipelineTemplateVersionSaveResponse> {
+  const res = await request.put<unknown, ApiResult<PipelineTemplateVersionSaveResponse>>(
     '/pipeline-template/version',
     dto,
   )

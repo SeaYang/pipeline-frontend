@@ -96,6 +96,22 @@ const router = createRouter({
           component: () => import('@/views/pipeline-template/PipelineTemplateVersionManage.vue'),
           props: true,
         },
+        {
+          path: 'pipeline-parameter',
+          name: 'pipeline-parameter',
+          component: () => import('@/views/pipeline-parameter/PipelineParameterList.vue'),
+        },
+        {
+          path: 'pipeline-parameter/create',
+          name: 'pipeline-parameter-create',
+          component: () => import('@/views/pipeline-parameter/PipelineParameterCreate.vue'),
+        },
+        {
+          path: 'pipeline-parameter/:name',
+          name: 'pipeline-parameter-detail',
+          component: () => import('@/views/pipeline-parameter/PipelineParameterDetail.vue'),
+          props: true,
+        },
       ],
     },
     {

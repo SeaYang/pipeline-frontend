@@ -26,6 +26,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/dict')) return '3-2'
   if (path.startsWith('/task-template')) return '3-3'
   if (path.startsWith('/pipeline-template')) return '3-4'
+  if (path.startsWith('/pipeline-parameter')) return '3-5'
   // Argo 后台管理
   if (path.startsWith('/argo/pipelines')) return '4-1'
   return ''
@@ -47,6 +48,9 @@ const handleMenuClick = (index: string) => {
       break
     case '3-4':
       router.push('/pipeline-template')
+      break
+    case '3-5':
+      router.push('/pipeline-parameter')
       break
     case '4-1':
       router.push('/argo/pipelines')
@@ -95,6 +99,7 @@ const handleMenuClick = (index: string) => {
         <el-menu-item index="3-2">字典配置</el-menu-item>
         <el-menu-item index="3-3">任务模板</el-menu-item>
         <el-menu-item index="3-4">流水线模板</el-menu-item>
+        <el-menu-item index="3-5">流水线参数</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="4">
         <template #title>

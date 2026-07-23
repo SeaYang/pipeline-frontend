@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { DocumentAdd, Promotion } from '@element-plus/icons-vue'
 import {
@@ -18,6 +19,8 @@ import { formatDateTime } from '@/utils/time'
 
 /** 路由参数注入：当前流水线模板编码（/pipeline-template/:pipelineTemplateCode/versions） */
 const props = defineProps<{ pipelineTemplateCode: string }>()
+
+const router = useRouter()
 
 // 版本号三段各自的可选值（0–100）
 const versionOptions = Array.from({ length: 101 }, (_, i) => i)
@@ -235,6 +238,31 @@ function handleViewModeChange(next: string | number | boolean) {
 
 // ============ 保存草稿 / 发布 ============
 
+/** 未定义参数弹框 */
+const undefinedParamsVisible = ref(false)
+/** 未定义参数列表 */
+const undefinedParamsList = ref<string[]>([])
+
+/** 点击未定义参数名，新开标签页跳转新建参数页 */
+function goCreateParam(name: string) {
+  const url = router.resolve(`/pipeline-parameter/create?name=${encodeURIComponent(name)}`).href
+  window.open(url, '_blank')
+}
+
+/**
+ * 检查保存响应中是否有未定义参数，有则弹框展示列表。
+ * @returns true 表示存在未定义参数，false 表示正常保存成功
+ */
+function checkUndefinedParams(saved: { undefinedParams?: string[] }): boolean {
+  const params = saved.undefinedParams ?? []
+  if (params.length === 0) {
+    return false
+  }
+  undefinedParamsList.value = params
+  undefinedParamsVisible.value = true
+  return true
+}
+
 async function handleSave() {
   if (!templateDetail.value.trim()) {
     ElMessage.warning('请填写模板详情（JSON / YAML）')
@@ -263,9 +291,15 @@ async function handleSave() {
           templateDetail: templateDetailJson,
           changeNote: changeNote.value,
         })
+    // 存在未定义参数时弹框提示，不继续保存流程
+    if (checkUndefinedParams(saved)) {
+      return
+    }
     ElMessage.success('保存成功（草稿）')
     await fetchVersions()
-    applyVersion(saved)
+    if (saved.version) {
+      applyVersion(saved.version)
+    }
   } catch (e) {
     ElMessage.error((e as Error)?.message || '保存失败')
   } finally {
@@ -439,6 +473,30 @@ onMounted(async () => {
         </el-scrollbar>
       </div>
     </div>
+
+    <!-- 未定义参数弹框 -->
+    <el-dialog
+      v-model="undefinedParamsVisible"
+      title="存在未定义参数"
+      width="480px"
+      :close-on-click-modal="true"
+    >
+      <p class="undefined-tip">以下模板参数未在参数定义表中配置，点击参数名前往新建：</p>
+      <div class="undefined-list">
+        <el-link
+          v-for="name in undefinedParamsList"
+          :key="name"
+          type="primary"
+          class="undefined-item"
+          @click="goCreateParam(name)"
+        >
+          {{ name }}
+        </el-link>
+      </div>
+      <template #footer>
+        <el-button @click="undefinedParamsVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -448,6 +506,25 @@ onMounted(async () => {
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
+}
+
+.undefined-tip {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+.undefined-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+}
+.undefined-item {
+  font-size: 14px;
+  font-weight: 500;
+  width: fit-content;
 }
 
 .page-header {
