@@ -112,6 +112,16 @@ const router = createRouter({
           component: () => import('@/views/pipeline-parameter/PipelineParameterDetail.vue'),
           props: true,
         },
+        {
+          path: 'trigger-event-enum',
+          name: 'trigger-event-enum',
+          component: () => import('@/views/trigger-event-enum/TriggerEventEnumList.vue'),
+        },
+        {
+          path: 'template-event-bind',
+          name: 'template-event-bind',
+          component: () => import('@/views/template-event-bind/TemplateEventBindList.vue'),
+        },
       ],
     },
     {
