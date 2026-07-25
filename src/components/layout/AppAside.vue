@@ -22,6 +22,8 @@ const activeMenu = computed(() => {
   if (path.startsWith('/pipeline/list') || path.startsWith('/pipeline/') || path.startsWith('/pipeline/execute-detail')) {
     return '2-1'
   }
+  // 制品管理
+  if (path.startsWith('/artifact-list')) return '2-2'
   // 后台配置
   if (path.startsWith('/dict')) return '3-2'
   if (path.startsWith('/task-template')) return '3-3'
@@ -41,6 +43,9 @@ const handleMenuClick = (index: string) => {
       break
     case '2-1':
       router.push('/pipeline/list')
+      break
+    case '2-2':
+      router.push('/artifact-list')
       break
     case '3-2':
       router.push('/dict/type')
@@ -98,6 +103,7 @@ const handleMenuClick = (index: string) => {
           <span>流水线</span>
         </template>
         <el-menu-item index="2-1">流水线列表</el-menu-item>
+        <el-menu-item index="2-2">制品管理</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="3">
         <template #title>

@@ -64,6 +64,11 @@ const router = createRouter({
           component: () => import('@/views/app-info/AppInfoList.vue'),
         },
         {
+          path: 'artifact-list',
+          name: 'artifact-list',
+          component: () => import('@/views/artifact/ArtifactList.vue'),
+        },
+        {
           path: 'dict/type',
           name: 'dict-type',
           component: () => import('@/views/dict/DictTypeList.vue'),
