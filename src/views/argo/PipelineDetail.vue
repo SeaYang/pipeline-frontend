@@ -5,6 +5,7 @@ import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
 import { type ArgoWorkflowDetail, type PipelineRunDetailDTO } from '@/api/argo'
+import { listArtifactByRun, type Artifact } from '@/api/artifact'
 import { workflowToFlow, buildTaskNodes, type ArgoTaskNode } from '@/utils/workflowFlow'
 import { getAccount } from '@/utils/auth'
 import { getNodeLog } from '@/data/nodeLogs'
@@ -28,6 +29,29 @@ const detail = ref<ArgoWorkflowDetail | null>(null)
 const taskCodeNameMap = ref<Record<string, string>>({})
 /** SSE 推送的完整 DTO（含 appName / 模板 / 执行人等扩展字段） */
 const runDto = ref<PipelineRunDetailDTO | null>(null)
+
+// ===== 制品信息 =====
+/** 本次执行产出的制品列表 */
+const artifacts = ref<Artifact[]>([])
+
+/** 加载制品信息（按 Argo Workflow name 查询） */
+async function loadArtifacts() {
+  if (!props.name) return
+  try {
+    artifacts.value = await listArtifactByRun(props.name)
+  } catch {
+    artifacts.value = []
+  }
+}
+
+/** 制品大小格式化 */
+function formatArtifactSize(bytes?: number): string {
+  if (!bytes) return '-'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
 
 // ===== SSE 连接管理 =====
 /** SSE 连接状态：connected / reconnecting / disconnected */
@@ -78,10 +102,11 @@ function connectSse() {
         taskCodeNameMap.value = dto.taskCodeNameMap
       }
       loading.value = false
-      // 终态：关闭连接
+      // 终态：关闭连接并刷新制品信息（制品在执行过程中逐步回传）
       if (TERMINAL_PHASES.has(dto.status)) {
         closeSse()
         sseStatus.value = 'disconnected'
+        loadArtifacts()
       }
     } catch {
       // JSON 解析异常忽略
@@ -408,7 +433,10 @@ const onLogDialogClosed = () => {
   closeLogSse()
 }
 
-onMounted(connectSse)
+onMounted(() => {
+  connectSse()
+  loadArtifacts()
+})
 onUnmounted(() => {
   closeSse()
   closeLogSse()
@@ -489,6 +517,43 @@ onUnmounted(() => {
       </el-descriptions-item>
       <el-descriptions-item label="执行快照">
         <el-button link type="primary" size="small" @click="openSnapshot">查看</el-button>
+      </el-descriptions-item>
+      <el-descriptions-item label="制品信息">
+        <el-popover
+          v-if="artifacts.length"
+          placement="bottom"
+          :width="480"
+          trigger="hover"
+        >
+          <template #reference>
+            <el-link type="primary" :underline="false">
+              {{ artifacts.length }} 个制品
+            </el-link>
+          </template>
+          <div class="artifact-popover">
+            <div
+              v-for="art in artifacts"
+              :key="art.id"
+              class="artifact-item"
+            >
+              <div class="artifact-item-header">
+                <el-tag :type="art.type === 'IMAGE' ? 'success' : 'info'" size="small">
+                  {{ art.type === 'IMAGE' ? '镜像' : '原始' }}
+                </el-tag>
+                <span class="artifact-item-name">{{ art.name }}</span>
+              </div>
+              <div class="artifact-item-body">
+                <div><span class="label">仓库：</span>{{ art.artifactRepository || '-' }}</div>
+                <div><span class="label">路径：</span>{{ art.artifactRepositoryPath || '-' }}</div>
+                <div><span class="label">大小：</span>{{ formatArtifactSize(art.size) }}</div>
+                <div><span class="label">SHA256：</span>{{ art.sha256 || '-' }}</div>
+                <div><span class="label">地址：</span>{{ art.artifactUrl || '-' }}</div>
+                <div><span class="label">构建时间：</span>{{ formatDateTime(art.buildTime) }}</div>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+        <span v-else>-</span>
       </el-descriptions-item>
     </el-descriptions>
 
@@ -662,6 +727,43 @@ onUnmounted(() => {
 
 .meta {
   margin-bottom: 20px;
+}
+
+.artifact-popover {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.artifact-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.artifact-item:last-child {
+  border-bottom: none;
+}
+
+.artifact-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.artifact-item-name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.artifact-item-body {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--el-text-color-regular);
+  word-break: break-all;
+}
+
+.artifact-item-body .label {
+  color: var(--el-text-color-secondary);
 }
 
 .flow-section {
