@@ -1730,9 +1730,9 @@
                         }
                     },
                     {
-                        "name": "gitee-ssh",
+                        "name": "gitlab-ssh",
                         "secret": {
-                            "secretName": "gitee-ssh-secret"
+                            "secretName": "gitlab-ssh-secret"
                         }
                     }
                 ],

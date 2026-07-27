@@ -31,6 +31,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/pipeline-parameter')) return '3-5'
   if (path.startsWith('/trigger-event-enum')) return '3-6'
   if (path.startsWith('/template-event-bind')) return '3-7'
+  if (path.startsWith('/generic-config')) return '3-8'
   // Argo 后台管理
   if (path.startsWith('/argo/pipelines')) return '4-1'
   return ''
@@ -64,6 +65,9 @@ const handleMenuClick = (index: string) => {
       break
     case '3-7':
       router.push('/template-event-bind')
+      break
+    case '3-8':
+      router.push('/generic-config')
       break
     case '4-1':
       router.push('/argo/pipelines')
@@ -116,6 +120,7 @@ const handleMenuClick = (index: string) => {
         <el-menu-item index="3-5">流水线参数</el-menu-item>
         <el-menu-item index="3-6">触发事件枚举</el-menu-item>
         <el-menu-item index="3-7">模板事件配置</el-menu-item>
+        <el-menu-item index="3-8">通用配置</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="4">
         <template #title>

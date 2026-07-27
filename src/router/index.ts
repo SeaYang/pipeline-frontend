@@ -127,6 +127,11 @@ const router = createRouter({
           name: 'template-event-bind',
           component: () => import('@/views/template-event-bind/TemplateEventBindList.vue'),
         },
+        {
+          path: 'generic-config',
+          name: 'generic-config',
+          component: () => import('@/views/generic-config/GenericConfigPage.vue'),
+        },
       ],
     },
     {
