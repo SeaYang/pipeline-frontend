@@ -8,12 +8,15 @@ import {
   type RunParameter,
   type RunParameterOption,
 } from '@/api/pipeline'
+import GitTreeSelect from '@/components/common/GitTreeSelect.vue'
 
 interface Props {
   /** v-model 控制显隐 */
   modelValue: boolean
   /** 流水线 ID */
   pipelineId: number
+  /** 应用名称（git-tree 组件查询 GitLab 仓库用） */
+  appName?: string
 }
 
 const props = defineProps<Props>()
@@ -233,7 +236,7 @@ async function submit() {
     :close-on-click-modal="false"
   >
     <el-form
-      v-loading="loading"
+      v-loading="loading || refreshing"
       ref="formRef"
       :model="values"
       label-width="160px"
@@ -312,11 +315,12 @@ async function submit() {
             </el-radio>
           </el-radio-group>
 
-          <!-- git-tree（首期简化为 input） -->
-          <el-input
+          <!-- git-tree：GitLab 目录树懒加载选择 -->
+          <GitTreeSelect
             v-else-if="p.componentType === 'git-tree' || p.componentType === 'gitlab-tree'"
             v-model="values[p.name]"
-            :placeholder="`请输入${p.label}路径`"
+            :app-name="props.appName || ''"
+            :placeholder="`请选择${p.label}路径`"
           />
 
           <!-- hidden 不渲染 -->

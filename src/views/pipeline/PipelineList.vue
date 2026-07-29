@@ -247,9 +247,11 @@ function openPreview(t: PipelineTemplateOption, e: Event) {
 
 const execVisible = ref(false)
 const execPipelineId = ref<number>(0)
+const execAppName = ref('')
 
 function openExecute(row: Pipeline) {
   execPipelineId.value = row.id!
+  execAppName.value = row.appName
   execVisible.value = true
 }
 
@@ -431,6 +433,7 @@ onMounted(() => {
     <PipelineExecuteDialog
       v-model="execVisible"
       :pipeline-id="execPipelineId"
+      :app-name="execAppName"
       @success="onExecuteSuccess"
     />
   </div>
