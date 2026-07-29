@@ -286,14 +286,22 @@ onMounted(() => {
       >
         <el-option v-for="a in appOptions" :key="a" :label="a" :value="a" />
       </el-select>
-      <el-button
-        type="primary"
-        :icon="Plus"
-        :disabled="!selectedAppName"
-        @click="openCreate"
-      >
-        新建流水线
-      </el-button>
+      <div class="toolbar-actions">
+        <el-button
+          type="primary"
+          :icon="Plus"
+          :disabled="!selectedAppName"
+          @click="openCreate"
+        >
+          新建流水线
+        </el-button>
+        <el-button
+          :disabled="!selectedAppName"
+          @click="router.push({ name: 'pipeline-trigger-history', query: { appName: selectedAppName } })"
+        >
+          触发历史
+        </el-button>
+      </div>
     </div>
 
     <el-table
@@ -325,11 +333,18 @@ onMounted(() => {
       <el-table-column label="创建时间" prop="createTime" min-width="170">
         <template #default="{ row }">{{ formatDateTime(row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="330" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openExecute(row)">执行</el-button>
           <el-button link type="primary" @click="router.push(`/pipeline/${row.id}/run/history`)">
             运行历史
+          </el-button>
+          <el-button
+            link
+            type="primary"
+            @click="router.push({ name: 'pipeline-trigger-history', query: { pipelineId: row.id } })"
+          >
+            触发历史
           </el-button>
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
@@ -468,6 +483,11 @@ onMounted(() => {
 
 .app-select {
   width: 320px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .link {

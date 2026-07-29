@@ -47,6 +47,12 @@ const router = createRouter({
           ],
         },
         {
+          // 触发历史：支持按 pipelineId 或 appName 维度查询
+          path: 'pipeline/trigger-history',
+          name: 'pipeline-trigger-history',
+          component: () => import('@/views/pipeline/PipelineTriggerHistory.vue'),
+        },
+        {
           path: 'argo/pipelines',
           name: 'argo-pipelines',
           component: () => import('@/views/argo/PipelineList.vue'),
