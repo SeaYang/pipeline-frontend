@@ -138,6 +138,16 @@ const router = createRouter({
           name: 'generic-config',
           component: () => import('@/views/generic-config/GenericConfigPage.vue'),
         },
+        {
+          path: 'cron-job',
+          name: 'cron-job',
+          component: () => import('@/views/cron-job/CronJobList.vue'),
+        },
+        {
+          path: 'cron-job/log',
+          name: 'cron-job-log',
+          component: () => import('@/views/cron-job/CronJobLogList.vue'),
+        },
       ],
     },
     {

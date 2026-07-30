@@ -1,3 +1,4 @@
+import dagre from '@dagrejs/dagre'
 import type { Edge, Node } from '@vue-flow/core'
 
 // ============ Argo Workflows 轻量类型（仅取渲染所需字段）============
@@ -140,10 +141,11 @@ function taskDependencies(task: ArgoTask): string[] {
 }
 
 /** 最长路径分层布局（依赖无关、确定性），返回每个节点的层号与坐标 */
-function layoutLayered(
-  ids: string[],
-  depMap: Map<string, string[]>,
-): { layers: Map<string, number>; positions: Map<string, { x: number; y: number }> } {
+/**
+ * 计算每个节点的「阶段」（最长路径分层，仅用于展示，如 ArgoTaskNode 的“阶段 N”标签），
+ * 与实际布局坐标解耦。
+ */
+function computeLayers(ids: string[], depMap: Map<string, string[]>): Map<string, number> {
   const layers = new Map<string, number>()
   const visiting = new Set<string>()
   const idSet = new Set(ids)
@@ -159,39 +161,43 @@ function layoutLayered(
     return l
   }
   ids.forEach(layerOf)
+  return layers
+}
 
-  // 按层分列
-  const columns = new Map<number, string[]>()
+const NODE_W = 200
+const NODE_H = 48
+
+/**
+ * 用 dagre 计算节点坐标（左→右分层布局）。
+ *
+ * 之前用自研的简单分层算法：同列内节点仅按「直接上游」的 y 中位数排序，
+ * 没有考虑「跨列依赖」（如某任务依赖的两个上游分别在不同列）。当某条依赖边跨越多列，
+ * 且中间列恰好有节点落在同一行时，边会与该节点重叠/被遮挡——表现为「明明配置了多个 depends，
+ * 图上却像只画出了一条依赖线」（如 go-k8s-deploy-via-api 同时依赖 push-image-nexus3 和
+ * push-raw-nexus3 时）。dagre 会为跨层边插入虚拟节点参与排序与定位，从而绕开其他真实节点，
+ * 是运行态流程图（workflowFlow.ts）已经在用的成熟方案，这里保持一致。
+ */
+function layoutWithDagre(
+  ids: string[],
+  depMap: Map<string, string[]>,
+): Map<string, { x: number; y: number }> {
+  const g = new dagre.graphlib.Graph()
+  g.setDefaultEdgeLabel(() => ({}))
+  g.setGraph({ rankdir: 'LR', nodesep: 30, ranksep: 80, marginx: 20, marginy: 20 })
+  ids.forEach((id) => g.setNode(id, { width: NODE_W, height: NODE_H }))
   for (const id of ids) {
-    const l = layers.get(id)!
-    const col = columns.get(l) ?? []
-    col.push(id)
-    columns.set(l, col)
-  }
-
-  // 计算坐标：x 由列决定（左→右），y 由列内顺序决定
-  const positions = new Map<string, { x: number; y: number }>()
-  const COL_W = 300
-  const ROW_H = 120
-  const PAD_X = 24
-  const PAD_Y = 24
-
-  for (const ci of [...columns.keys()].sort((a, b) => a - b)) {
-    const col = columns.get(ci) ?? []
-    // 列内按上游节点 y 的中位数排序，尽量减少连线交叉
-    const medianY = (id: string): number => {
-      const deps = (depMap.get(id) ?? []).filter((d) => positions.has(d))
-      if (!deps.length) return 0
-      const ys = deps.map((d) => positions.get(d)!.y).sort((a, b) => a - b)
-      return ys[Math.floor(ys.length / 2)] ?? 0
+    for (const dep of depMap.get(id) ?? []) {
+      g.setEdge(dep, id)
     }
-    col.sort((a, b) => medianY(a) - medianY(b))
-    col.forEach((id, idx) => {
-      positions.set(id, { x: PAD_X + ci * COL_W, y: PAD_Y + idx * ROW_H })
-    })
   }
+  dagre.layout(g)
 
-  return { layers, positions }
+  const positions = new Map<string, { x: number; y: number }>()
+  ids.forEach((id) => {
+    const pos = g.node(id)
+    if (pos) positions.set(id, { x: pos.x - NODE_W / 2, y: pos.y - NODE_H / 2 })
+  })
+  return positions
 }
 
 // ============ 主转换函数 ============
@@ -261,11 +267,10 @@ export function argoToFlow(raw: unknown): ArgoFlowResult {
     }
   }
 
-  // 分层与坐标（最长路径分层，左→右排布）
-  const { layers, positions } = layoutLayered(
-    tasks.map((t) => t.name),
-    depMap,
-  )
+  // 阶段（最长路径分层，仅展示用）+ 坐标（dagre 分层布局，正确处理跨列依赖）
+  const ids = tasks.map((t) => t.name)
+  const layers = computeLayers(ids, depMap)
+  const positions = layoutWithDagre(ids, depMap)
 
   const nodes: Node<ArgoNodeData>[] = tasks.map((t) => {
     const deps = depMap.get(t.name) ?? []
