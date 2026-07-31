@@ -15,6 +15,8 @@ export interface AppInfo {
   description?: string
   /** git 仓库地址（ssh 格式） */
   gitSshUrl?: string
+  /** GitLab 仓库 ID */
+  repoId?: number
   createTime?: string
   updateTime?: string
 }
@@ -40,6 +42,26 @@ export async function pageAppInfo(query: AppInfoQuery): Promise<PageResult<AppIn
   })
   if (res.code !== 200 || !res.data) {
     throw new Error(res.message || '应用信息列表获取失败')
+  }
+  return res.data
+}
+
+/** 根据 appName 获取应用详情：GET /app-info/detail */
+export async function getAppInfoByAppName(appName: string): Promise<AppInfo> {
+  const res = await request.get<unknown, ApiResult<AppInfo>>('/app-info/detail', {
+    params: { appName },
+  })
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '应用详情获取失败')
+  }
+  return res.data
+}
+
+/** 修改应用信息：PUT /app-info */
+export async function updateAppInfo(data: Partial<AppInfo> & { id: number }): Promise<AppInfo> {
+  const res = await request.put<unknown, ApiResult<AppInfo>>('/app-info', data)
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '修改应用信息失败')
   }
   return res.data
 }

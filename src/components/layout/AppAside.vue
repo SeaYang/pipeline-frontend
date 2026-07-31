@@ -18,6 +18,8 @@ const activeMenu = computed(() => {
   const path = route.path
   // 应用列表
   if (path === '/app-list') return '1-1'
+  // 应用配置
+  if (path.startsWith('/app-config')) return '1-2'
   // 流水线列表及其子页面（最近运行 / 运行历史 / 执行详情）
   if (path.startsWith('/pipeline/list') || path.startsWith('/pipeline/') || path.startsWith('/pipeline/execute-detail')) {
     return '2-1'
@@ -38,16 +40,37 @@ const activeMenu = computed(() => {
   return ''
 })
 
+/**
+ * 从当前路由中提取 appName，用于跨菜单跳转时自动携带。
+ * - /app-config/:appName → params.appName
+ * - /pipeline/list/:appName → params.appName
+ * - /artifact-list?appName=xxx → query.appName
+ * - /pipeline/trigger-history?appName=xxx → query.appName
+ */
+const currentAppName = computed(() => {
+  // 路径参数（app-config、pipeline-list）
+  const param = route.params.appName
+  if (param && typeof param === 'string') return param
+  // query 参数（artifact-list、trigger-history）
+  const queryApp = route.query.appName
+  if (queryApp && typeof queryApp === 'string') return queryApp
+  return ''
+})
+
 const handleMenuClick = (index: string) => {
+  const app = currentAppName.value
   switch (index) {
     case '1-1':
       router.push('/app-list')
       break
+    case '1-2':
+      router.push(app ? `/app-config/${encodeURIComponent(app)}` : '/app-config')
+      break
     case '2-1':
-      router.push('/pipeline/list')
+      router.push(app ? `/pipeline/list/${encodeURIComponent(app)}` : '/pipeline/list')
       break
     case '2-2':
-      router.push('/artifact-list')
+      router.push({ path: '/artifact-list', query: app ? { appName: app } : {} })
       break
     case '3-2':
       router.push('/dict/type')
@@ -104,6 +127,7 @@ const handleMenuClick = (index: string) => {
           <span>应用信息</span>
         </template>
         <el-menu-item index="1-1">应用列表</el-menu-item>
+        <el-menu-item index="1-2">应用配置</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="2">
         <template #title>

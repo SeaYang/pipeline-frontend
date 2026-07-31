@@ -13,6 +13,11 @@ function goPipeline(appName: string) {
   router.push(`/pipeline/list/${encodeURIComponent(appName)}`)
 }
 
+/** 点击配置 → 进入应用配置页 */
+function goConfig(appName: string) {
+  router.push(`/app-config/${encodeURIComponent(appName)}`)
+}
+
 const loading = ref(false)
 const list = ref<AppInfo[]>([])
 const total = ref(0)
@@ -137,6 +142,12 @@ onMounted(fetchData)
       </el-table-column>
       <el-table-column label="更新时间" prop="updateTime" min-width="170" sortable="custom">
         <template #default="{ row }">{{ formatDateTime(row.updateTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="160" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link size="small" @click="goPipeline(row.appName)">流水线</el-button>
+          <el-button type="success" link size="small" @click="goConfig(row.appName)">配置</el-button>
+        </template>
       </el-table-column>
     </el-table>
 
