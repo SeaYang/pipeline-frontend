@@ -70,6 +70,17 @@ const router = createRouter({
           component: () => import('@/views/app-info/AppInfoList.vue'),
         },
         {
+          path: 'app-config',
+          name: 'app-config',
+          component: () => import('@/views/app-info/AppConfig.vue'),
+        },
+        {
+          path: 'app-config/:appName',
+          name: 'app-config-detail',
+          component: () => import('@/views/app-info/AppConfig.vue'),
+          props: true,
+        },
+        {
           path: 'artifact-list',
           name: 'artifact-list',
           component: () => import('@/views/artifact/ArtifactList.vue'),

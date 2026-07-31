@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { pageArtifact, type Artifact, type ArtifactQuery, type ArtifactType } from '@/api/artifact'
 import { formatDateTime } from '@/utils/time'
 
+const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const list = ref<Artifact[]>([])
 const total = ref(0)
 
 const query = reactive<ArtifactQuery>({
-  appName: '',
+  appName: (route.query.appName ? String(route.query.appName) : '') as string,
   name: '',
   gitBranch: '',
   env: '',
@@ -40,6 +41,7 @@ async function fetchData() {
 
 function handleSearch() {
   query.pageNum = 1
+  syncAppNameToQuery()
   fetchData()
 }
 
@@ -98,6 +100,28 @@ function goPipelineDetail(pipelineRunName?: string) {
 }
 
 onMounted(fetchData)
+
+/** 将 appName 同步到 URL query，便于跨页面传递 */
+function syncAppNameToQuery() {
+  const appName = query.appName || ''
+  const current = route.query.appName ? String(route.query.appName) : ''
+  if (appName !== current) {
+    router.replace({ query: { ...route.query, appName: appName || undefined } })
+  }
+}
+
+/** 监听外部修改 URL query.appName（如从其他页面跳转带过来） */
+watch(
+  () => route.query.appName,
+  (val) => {
+    const name = val ? String(val) : ''
+    if (name !== query.appName) {
+      query.appName = name
+      query.pageNum = 1
+      fetchData()
+    }
+  },
+)
 </script>
 
 <template>
