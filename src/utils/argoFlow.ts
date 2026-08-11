@@ -183,7 +183,7 @@ function layoutWithDagre(
 ): Map<string, { x: number; y: number }> {
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'LR', nodesep: 30, ranksep: 80, marginx: 20, marginy: 20 })
+  g.setGraph({ rankdir: 'LR', nodesep: 40, ranksep: 120, marginx: 20, marginy: 20 })
   ids.forEach((id) => g.setNode(id, { width: NODE_W, height: NODE_H }))
   for (const id of ids) {
     for (const dep of depMap.get(id) ?? []) {
@@ -253,7 +253,7 @@ export function argoToFlow(raw: unknown): ArgoFlowResult {
     )
   }
 
-  // 连线（smoothstep + 流动动画，左→右观感更好）
+  // 连线（parallel-step 正交折线，并行分支分叉处平行对齐）
   const edges: Edge[] = []
   for (const t of tasks) {
     for (const dep of depMap.get(t.name) ?? []) {
@@ -261,7 +261,7 @@ export function argoToFlow(raw: unknown): ArgoFlowResult {
         id: `e-${dep}-${t.name}`,
         source: dep,
         target: t.name,
-        type: 'smoothstep',
+        type: 'parallel-step',
         animated: true,
       })
     }

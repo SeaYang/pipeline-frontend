@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, markRaw, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { VueFlow, useVueFlow, type NodeMouseEvent } from '@vue-flow/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -16,8 +16,14 @@ import {
   stopPipelineRun,
 } from '@/api/pipeline'
 import PipelineFlowNode from '@/components/flow/PipelineFlowNode.vue'
+import ParallelStepEdge from '@/components/flow/ParallelStepEdge.vue'
 import XtermLogViewer from '@/components/flow/XtermLogViewer.vue'
 import CodeEditor from '@/components/common/CodeEditor.vue'
+
+/** 自定义边类型映射：parallel-step 为正交折线边，解决并行分支分叉时的"2"字形折线问题 */
+const edgeTypes = markRaw({
+  'parallel-step': ParallelStepEdge,
+})
 
 const props = defineProps<{ name: string }>()
 
@@ -571,7 +577,8 @@ onUnmounted(() => {
         <VueFlow
           :nodes="flow.nodes"
           :edges="flow.edges"
-          :default-edge-options="{ type: 'smoothstep' }"
+          :edge-types="edgeTypes"
+          :default-edge-options="{ type: 'parallel-step' }"
           fit-view-on-init
           :zoom-on-scroll="false"
           :zoom-on-pinch="false"

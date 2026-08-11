@@ -171,7 +171,7 @@ function buildEdges(detail: ArgoWorkflowDetail, taskNodes: ArgoTaskNode[]): Edge
           id: `e-${dep}-${task.name}`,
           source: dep,
           target: task.name,
-          type: 'smoothstep',
+          type: 'parallel-step',
           animated: phaseByTaskName.get(task.name) === 'Running',
         })
       }
@@ -191,7 +191,7 @@ function buildEdges(detail: ArgoWorkflowDetail, taskNodes: ArgoTaskNode[]): Edge
           id: `e-${n.id}-${childId}`,
           source: n.id,
           target: childId,
-          type: 'smoothstep',
+          type: 'parallel-step',
           animated: phaseByTaskName.get(childId) === 'Running',
         })
       }
@@ -231,7 +231,7 @@ export function workflowToFlow(
   // dagre 自动布局
   const g = new dagre.graphlib.Graph()
   g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'LR', nodesep: 40, ranksep: 90, marginx: 20, marginy: 20 })
+  g.setGraph({ rankdir: 'LR', nodesep: 50, ranksep: 120, marginx: 20, marginy: 20 })
   nodes.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }))
   edges.forEach((e) => g.setEdge(e.source, e.target))
   dagre.layout(g)
