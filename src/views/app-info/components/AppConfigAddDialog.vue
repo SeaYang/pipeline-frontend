@@ -97,11 +97,11 @@ async function handleSubmit() {
   // 校验
   for (let i = 0; i < rows.value.length; i++) {
     const row = rows.value[i]
-    if (!row.parameterName) {
+    if (!row?.parameterName) {
       ElMessage.warning(`第 ${i + 1} 行参数名不能为空`)
       return
     }
-    if (!row.value) {
+    if (!row?.value) {
       ElMessage.warning(`第 ${i + 1} 行参数值不能为空`)
       return
     }

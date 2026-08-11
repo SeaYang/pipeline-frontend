@@ -2,6 +2,7 @@ import dagre from '@dagrejs/dagre'
 import type { Edge, Node } from '@vue-flow/core'
 import type {
   ArgoDagTask,
+  ArgoParameter,
   ArgoTemplateRef,
   ArgoWorkflowDetail,
   ArgoWorkflowNode,
@@ -220,8 +221,9 @@ export function workflowToFlow(
   // 如果提供了中文名映射，覆盖 displayName
   if (taskCodeNameMap) {
     for (const t of taskNodes) {
-      if (taskCodeNameMap[t.taskName]) {
-        t.displayName = taskCodeNameMap[t.taskName]
+      const displayName = taskCodeNameMap[t.taskName]
+      if (displayName) {
+        t.displayName = displayName
       }
     }
   }
