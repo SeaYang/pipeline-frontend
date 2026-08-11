@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, markRaw } from 'vue'
 import { load as yamlLoad } from 'js-yaml'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { argoToFlow } from '@/utils/argoFlow'
 import { detectFormat } from '@/utils/yaml'
 import SimpleTaskNode from './SimpleTaskNode.vue'
+import ParallelStepEdge from './ParallelStepEdge.vue'
+
+/** 自定义边类型：parallel-step 正交折线边，解决并行分支分叉时的"2"字形折线问题 */
+const edgeTypes = markRaw({
+  'parallel-step': ParallelStepEdge,
+})
 
 /**
  * 流水线模板 DAG 预览：把模板详情文本（JSON/YAML，对应 Argo WorkflowTemplate）
@@ -52,7 +58,8 @@ const onPaneReady = () => fitView({ padding: 0.2 })
       v-else
       :nodes="view.nodes"
       :edges="view.edges"
-      :default-edge-options="{ type: 'smoothstep' }"
+      :edge-types="edgeTypes"
+      :default-edge-options="{ type: 'parallel-step' }"
       fit-view-on-init
       :zoom-on-scroll="interactive"
       :zoom-on-pinch="interactive"
