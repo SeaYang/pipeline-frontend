@@ -503,6 +503,9 @@ onUnmounted(() => {
       <el-descriptions-item label="执行人">
         {{ runDto?.creator ?? '-' }}
       </el-descriptions-item>
+      <el-descriptions-item label="执行集群">
+        {{ runDto?.clusterName ?? '-' }}
+      </el-descriptions-item>
       <el-descriptions-item label="耗时">
         {{ formatDuration(detail.status?.startedAt, detail.status?.finishedAt) }}
       </el-descriptions-item>

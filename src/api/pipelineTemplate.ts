@@ -15,6 +15,10 @@ export interface PipelineTemplate {
   description?: string
   /** 流水线模板所属分组（存字典 dictKey） */
   pipelineTemplateGroup: string
+  /** 候选执行集群（空数组/undefined 表示不限制集群） */
+  clusterNames?: string[]
+  /** 集群调度策略：Any-任意集群 / PreferSelected-优先选中集群 */
+  clusterSchedulePolicy?: string
   creator?: string
   createTime?: string
   updateTime?: string
