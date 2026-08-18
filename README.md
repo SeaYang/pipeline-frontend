@@ -1,6 +1,10 @@
 # pipeline-frontend
 
-基于 [Argo Workflows](https://argoproj.github.io/argo-workflows/) 的流水线平台前端，提供流水线可视化管理、DAG 画布编排、模板管理、制品管理、定时任务等功能。
+基于 [Argo Workflows](https://argoproj.github.io/argo-workflows/) 的流水线平台前端，提供流水线可视化管理、DAG 画布编排、模板管理、制品管理、定时任务等功能。流水线的执行效果如下：
+
+![流水线执行详情](docs/images/pipeline-latest-run.png)
+
+> 📖 详细的系统使用说明请参阅 [用户手册](docs/user-guide.md)。
 
 ## 技术栈
 
@@ -26,8 +30,6 @@
 | [pipeline-server](https://github.com/SeaYang/pipeline-server) | 流水线平台后端 |
 | [pipeline-manifests](https://github.com/SeaYang/pipeline-manifests) | 流水线平台清单文件（Kubernetes 部署） |
 | [cix-cli](https://github.com/SeaYang/cix-cli) | 基础命令行工具 |
-
-> 📖 详细的系统使用说明请参阅 [用户手册](docs/user-guide.md)。
 
 ## 环境要求
 

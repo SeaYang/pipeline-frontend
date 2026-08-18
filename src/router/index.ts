@@ -159,6 +159,11 @@ const router = createRouter({
           name: 'cron-job-log',
           component: () => import('@/views/cron-job/CronJobLogList.vue'),
         },
+        {
+          path: 'cluster',
+          name: 'cluster',
+          component: () => import('@/views/cluster/ClusterList.vue'),
+        },
       ],
     },
     {

@@ -35,6 +35,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/template-event-bind')) return '3-7'
   if (path.startsWith('/generic-config')) return '3-8'
   if (path.startsWith('/cron-job')) return '3-9'
+  if (path.startsWith('/cluster')) return '3-10'
   // Argo 后台管理
   if (path.startsWith('/argo/pipelines')) return '4-1'
   return ''
@@ -96,6 +97,9 @@ const handleMenuClick = (index: string) => {
     case '3-9':
       router.push('/cron-job')
       break
+    case '3-10':
+      router.push('/cluster')
+      break
     case '4-1':
       router.push('/argo/pipelines')
       break
@@ -150,6 +154,7 @@ const handleMenuClick = (index: string) => {
         <el-menu-item index="3-7">模板事件配置</el-menu-item>
         <el-menu-item index="3-8">通用配置</el-menu-item>
         <el-menu-item index="3-9">定时任务</el-menu-item>
+        <el-menu-item index="3-10">集群管理</el-menu-item>
       </el-sub-menu>
       <el-sub-menu index="4">
         <template #title>

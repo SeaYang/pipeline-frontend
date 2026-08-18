@@ -237,6 +237,8 @@ export interface PipelineRun {
   pipelineTemplateVersion: string
   /** 执行状态编码，见 PIPELINE_RUN_STATUS_MAP */
   status: string
+  /** 执行集群（pipeline_run.cluster_name，存量为空时后端兜底解析） */
+  clusterName?: string
   gitBranch?: string
   commitId?: string
   arguments?: string

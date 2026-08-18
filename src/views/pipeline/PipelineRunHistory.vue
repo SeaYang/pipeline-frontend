@@ -80,6 +80,9 @@ onMounted(loadList)
           <a class="link" @click="goDetail(row.name)">{{ row.name }}</a>
         </template>
       </el-table-column>
+      <el-table-column label="执行集群" prop="clusterName" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.clusterName ?? '-' }}</template>
+      </el-table-column>
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag size="small" :type="pipelineRunStatusTagType(row.status)">

@@ -198,6 +198,8 @@ export interface PipelineRunDetailDTO {
   pipelineTemplateName?: string
   /** 执行人 */
   creator?: string
+  /** 执行集群（pipeline_run.cluster_name，存量为空时后端兜底解析） */
+  clusterName?: string
   /** 流水线名称 */
   pipelineName?: string
   /** 运行参数 JSON 字符串 */
