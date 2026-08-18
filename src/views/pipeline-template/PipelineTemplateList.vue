@@ -13,6 +13,7 @@ import {
   type PipelineTemplateQuery,
 } from '@/api/pipelineTemplate'
 import { listClusterOptions, listSchedulePolicies, type ClusterOption, type SchedulePolicyOption } from '@/api/cluster'
+import { listOverLimitPolicies, type OverLimitPolicyOption } from '@/api/pipeline'
 import type { DictData } from '@/api/dict'
 import { formatDateTime } from '@/utils/time'
 
@@ -37,6 +38,15 @@ function schedulePolicyLabel(policy?: string) {
     PreferSelected: '优先选中集群',
   }
   return policy ? (map[policy] ?? policy) : '任意集群'
+}
+
+/** 超限策略编码 → 中文名（与后端 OverLimitPolicyEnum 对应） */
+function overLimitPolicyLabel(policy?: string) {
+  const map: Record<string, string> = {
+    Reject: '拒绝新执行',
+    ReplaceOldest: '替换最早执行',
+  }
+  return policy ? (map[policy] ?? policy) : '拒绝新执行'
 }
 
 const query = reactive<PipelineTemplateQuery>({
@@ -110,11 +120,15 @@ const form = reactive<PipelineTemplate>({
   description: '',
   clusterNames: [],
   clusterSchedulePolicy: 'Any',
+  appMaxRunningLimit: 1,
+  overLimitPolicy: 'Reject',
 })
 
 // 执行集群下拉（GET /cluster/options）与调度策略下拉（GET /cluster/schedule-policies）
 const clusterOptions = ref<ClusterOption[]>([])
 const schedulePolicies = ref<SchedulePolicyOption[]>([])
+// 超限策略下拉（GET /pipeline/over-limit-policies）
+const overLimitPolicies = ref<OverLimitPolicyOption[]>([])
 
 async function fetchClusterOptions() {
   try {
@@ -134,10 +148,32 @@ async function fetchSchedulePolicies() {
   }
 }
 
+async function fetchOverLimitPolicies() {
+  try {
+    overLimitPolicies.value = await listOverLimitPolicies()
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || '超限策略选项获取失败')
+    overLimitPolicies.value = []
+  }
+}
+
 const rules: FormRules<PipelineTemplate> = {
   pipelineTemplateCode: [{ required: true, message: '请输入流水线模板编码', trigger: 'blur' }],
   name: [{ required: true, message: '请输入流水线模板名称', trigger: 'blur' }],
   pipelineTemplateGroup: [{ required: true, message: '请选择所属分组', trigger: 'change' }],
+  appMaxRunningLimit: [
+    { required: true, message: '请输入应用并发上限', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: number, callback: (err?: Error) => void) => {
+        if (!Number.isInteger(value) || value < 1 || value > 1000) {
+          callback(new Error('应用并发上限必须为 1~1000 的整数'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 }
 
 function resetForm() {
@@ -148,6 +184,8 @@ function resetForm() {
   form.description = ''
   form.clusterNames = []
   form.clusterSchedulePolicy = 'Any'
+  form.appMaxRunningLimit = 1
+  form.overLimitPolicy = 'Reject'
 }
 
 function openCreate() {
@@ -164,6 +202,8 @@ function openEdit(row: PipelineTemplate) {
   // clusterNames 可能是 null（不限制集群）
   form.clusterNames = row.clusterNames ?? []
   form.clusterSchedulePolicy = row.clusterSchedulePolicy || 'Any'
+  form.appMaxRunningLimit = row.appMaxRunningLimit ?? 1
+  form.overLimitPolicy = row.overLimitPolicy || 'Reject'
   dialogMode.value = 'edit'
   dialogVisible.value = true
 }
@@ -228,6 +268,7 @@ onMounted(() => {
   fetchGroups()
   fetchClusterOptions()
   fetchSchedulePolicies()
+  fetchOverLimitPolicies()
 })
 </script>
 
@@ -272,6 +313,10 @@ onMounted(() => {
       </el-table-column>
       <el-table-column label="调度策略" prop="clusterSchedulePolicy" min-width="110">
         <template #default="{ row }">{{ schedulePolicyLabel(row.clusterSchedulePolicy) }}</template>
+      </el-table-column>
+      <el-table-column label="应用并发上限" prop="appMaxRunningLimit" width="110" />
+      <el-table-column label="超限策略" prop="overLimitPolicy" min-width="120">
+        <template #default="{ row }">{{ overLimitPolicyLabel(row.overLimitPolicy) }}</template>
       </el-table-column>
       <el-table-column
         label="描述"
@@ -369,6 +414,28 @@ onMounted(() => {
           <div v-if="form.clusterSchedulePolicy === 'PreferSelected' && !(form.clusterNames && form.clusterNames.length)" class="cluster-policy-tip">
             优先选中集群建议至少选择一个执行集群（未选择时等同任意集群）
           </div>
+        </el-form-item>
+        <el-form-item label="应用并发上限" prop="appMaxRunningLimit">
+          <el-input-number
+            v-model="form.appMaxRunningLimit"
+            :min="1"
+            :max="1000"
+            :step="1"
+            step-strictly
+            style="width: 100%"
+          />
+          <div class="cluster-policy-tip">同一应用使用本模板的未完成执行数上限（默认 1 即不允许并发）</div>
+        </el-form-item>
+        <el-form-item label="超限策略" prop="overLimitPolicy">
+          <el-select v-model="form.overLimitPolicy" style="width: 100%">
+            <el-option
+              v-for="p in overLimitPolicies"
+              :key="p.code"
+              :label="p.description"
+              :value="p.code"
+            />
+          </el-select>
+          <div class="cluster-policy-tip">达到并发上限后的处理方式（默认拒绝新执行）</div>
         </el-form-item>
       </el-form>
       <template #footer>
