@@ -13,6 +13,12 @@ export interface Pipeline {
   appName: string
   /** 流水线模板编码 */
   pipelineTemplateCode: string
+  /** 本流水线最大并发执行数；空表示未配置，fallback 到模板的 appMaxRunningLimit */
+  maxRunningLimit?: number
+  /** 超限策略：Reject / ReplaceOldest；空表示未配置，fallback 到模板的 overLimitPolicy */
+  overLimitPolicy?: string
+  /** 生效的流水线并发上限（clamp 后，只读回显） */
+  effectiveMaxRunningLimit?: number
   /** 创建人 */
   creator?: string
   createTime?: string
@@ -41,12 +47,16 @@ export interface PipelineCreate {
   pipelineTemplateCode: string
 }
 
-/** 流水线实例修改入参（对应后端 PipelineUpdateRequest，目前仅允许修改 name） */
+/** 流水线实例修改入参（对应后端 PipelineUpdateRequest，允许修改 name / maxRunningLimit / overLimitPolicy） */
 export interface PipelineUpdate {
   /** 主键（必填） */
   id: number
-  /** 流水线名称（仅允许修改该字段） */
-  name: string
+  /** 流水线名称 */
+  name?: string
+  /** 本流水线最大并发执行数（可空，空表示未配置 fallback 到模板） */
+  maxRunningLimit?: number
+  /** 超限策略（可空：Reject / ReplaceOldest；空表示未配置 fallback 到模板） */
+  overLimitPolicy?: string
 }
 
 /** 执行流水线入参（对应后端 PipelineExecuteRequest） */
@@ -134,11 +144,28 @@ export async function createPipeline(dto: PipelineCreate): Promise<Pipeline> {
   return res.data
 }
 
-/** 修改流水线（目前仅允许修改 name）：PUT /pipeline */
+/** 修改流水线（允许修改 name / maxRunningLimit / overLimitPolicy）：PUT /pipeline */
 export async function updatePipeline(dto: PipelineUpdate): Promise<Pipeline> {
   const res = await request.put<unknown, ApiResult<Pipeline>>('/pipeline', dto)
   if (res.code !== 200 || !res.data) {
     throw new Error(res.message || '修改流水线失败')
+  }
+  return res.data
+}
+
+/** 超限策略下拉选项项（对应后端 OverLimitPolicyEnum） */
+export interface OverLimitPolicyOption {
+  /** 策略编码：Reject / ReplaceOldest */
+  code: string
+  /** 策略中文名 */
+  description: string
+}
+
+/** 超限策略下拉选项：GET /pipeline/over-limit-policies */
+export async function listOverLimitPolicies(): Promise<OverLimitPolicyOption[]> {
+  const res = await request.get<unknown, ApiResult<OverLimitPolicyOption[]>>('/pipeline/over-limit-policies')
+  if (res.code !== 200 || !res.data) {
+    throw new Error(res.message || '超限策略选项获取失败')
   }
   return res.data
 }

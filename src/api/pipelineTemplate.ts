@@ -19,6 +19,10 @@ export interface PipelineTemplate {
   clusterNames?: string[]
   /** 集群调度策略：Any-任意集群 / PreferSelected-优先选中集群 */
   clusterSchedulePolicy?: string
+  /** 应用维度最大并发执行数（默认 1 即不允许并发；同一 appName 使用本模板的未完成执行数上限） */
+  appMaxRunningLimit?: number
+  /** 超限策略：Reject-拒绝新执行 / ReplaceOldest-终止最早执行腾位（默认 Reject） */
+  overLimitPolicy?: string
   creator?: string
   createTime?: string
   updateTime?: string

@@ -9,9 +9,11 @@ import {
   updatePipeline,
   deletePipeline,
   listPipelineTemplates,
+  listOverLimitPolicies,
   type Pipeline,
   type PipelineQuery,
   type PipelineTemplateOption,
+  type OverLimitPolicyOption,
 } from '@/api/pipeline'
 import { pageAppInfo } from '@/api/appInfo'
 import { formatDateTime } from '@/utils/time'
@@ -140,19 +142,51 @@ async function handleDelete(row: Pipeline) {
   }
 }
 
-// ============ 编辑（仅 name） ============
+// ============ 编辑（name / 并发控制字段） ============
 
 const editVisible = ref(false)
 const editSubmitting = ref(false)
 const editFormRef = ref<FormInstance>()
-const editForm = reactive<{ id: number; name: string }>({ id: 0, name: '' })
+const editForm = reactive<{
+  id: number
+  name: string
+  maxRunningLimit?: number
+  overLimitPolicy?: string
+}>({ id: 0, name: '', maxRunningLimit: undefined, overLimitPolicy: undefined })
 const editRules: FormRules = {
   name: [{ required: true, message: '请输入流水线名称', trigger: 'blur' }],
+  maxRunningLimit: [
+    {
+      validator: (_rule: unknown, value: number | undefined, callback: (err?: Error) => void) => {
+        if (value === undefined || value === null) {
+          callback() // 可空：未配置时 fallback 到模板
+        } else if (!Number.isInteger(value) || value < 1) {
+          callback(new Error('并发上限必须为大于等于 1 的整数'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
+// 超限策略下拉（GET /pipeline/over-limit-policies）
+const overLimitPolicies = ref<OverLimitPolicyOption[]>([])
+
+async function fetchOverLimitPolicies() {
+  try {
+    overLimitPolicies.value = await listOverLimitPolicies()
+  } catch {
+    overLimitPolicies.value = []
+  }
 }
 
 function openEdit(row: Pipeline) {
   editForm.id = row.id!
   editForm.name = row.name
+  editForm.maxRunningLimit = row.maxRunningLimit ?? undefined
+  editForm.overLimitPolicy = row.overLimitPolicy || undefined
   editVisible.value = true
 }
 
@@ -162,7 +196,12 @@ async function submitEdit() {
   if (!valid) return
   editSubmitting.value = true
   try {
-    await updatePipeline({ id: editForm.id, name: editForm.name })
+    await updatePipeline({
+      id: editForm.id,
+      name: editForm.name,
+      maxRunningLimit: editForm.maxRunningLimit,
+      overLimitPolicy: editForm.overLimitPolicy,
+    })
     ElMessage.success('修改成功')
     editVisible.value = false
     loadList()
@@ -264,6 +303,7 @@ onMounted(() => {
   // 不发请求（空关键词不查询）；仅把当前选中的 appName 兜底进选项，保证下拉里能显示
   const cur = selectedAppName.value
   if (cur && !appOptions.value.includes(cur)) appOptions.value = [cur]
+  fetchOverLimitPolicies()
 })
 </script>
 
@@ -365,11 +405,38 @@ onMounted(() => {
       />
     </div>
 
-    <!-- 编辑弹框（仅 name） -->
+    <!-- 编辑弹框（name / 并发控制字段） -->
     <el-dialog v-model="editVisible" title="编辑流水线" width="460px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
         <el-form-item label="流水线名称" prop="name">
           <el-input v-model="editForm.name" maxlength="64" show-word-limit />
+        </el-form-item>
+        <el-form-item label="并发上限" prop="maxRunningLimit">
+          <el-input-number
+            v-model="editForm.maxRunningLimit"
+            :min="1"
+            :step="1"
+            step-strictly
+            placeholder="未配置则用模板值"
+            style="width: 100%"
+          />
+          <div class="field-tip">留空表示未配置，使用模板的应用并发上限；配置值超过模板值时按模板值生效</div>
+        </el-form-item>
+        <el-form-item label="超限策略" prop="overLimitPolicy">
+          <el-select
+            v-model="editForm.overLimitPolicy"
+            clearable
+            placeholder="未配置则用模板策略"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="p in overLimitPolicies"
+              :key="p.code"
+              :label="p.description"
+              :value="p.code"
+            />
+          </el-select>
+          <div class="field-tip">达到并发上限后的处理方式；留空表示未配置，使用模板的超限策略</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -457,6 +524,14 @@ onMounted(() => {
 <style scoped>
 .pipeline-list {
   padding: 16px 20px;
+}
+
+/* 表单字段下方的小号灰色提示文案 */
+.field-tip {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-secondary);
 }
 
 .list-header {
