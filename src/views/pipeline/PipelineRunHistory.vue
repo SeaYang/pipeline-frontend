@@ -83,6 +83,18 @@ onMounted(loadList)
       <el-table-column label="执行集群" prop="clusterName" min-width="130" show-overflow-tooltip>
         <template #default="{ row }">{{ row.clusterName ?? '-' }}</template>
       </el-table-column>
+      <el-table-column label="Git 分支" prop="gitBranch" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.gitBranch ?? '-' }}</template>
+      </el-table-column>
+      <el-table-column label="Commit" min-width="110">
+        <template #default="{ row }">
+          <!-- 完整 commitId 放 tooltip，展示取前 7 位短 id -->
+          <el-tooltip v-if="row.commitId" :content="row.commitId" placement="top">
+            <code class="commit-id">{{ row.commitId.slice(0, 7) }}</code>
+          </el-tooltip>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
           <el-tag size="small" :type="pipelineRunStatusTagType(row.status)">
@@ -131,6 +143,11 @@ onMounted(loadList)
 
 .link:hover {
   text-decoration: underline;
+}
+
+.commit-id {
+  font-family: monospace;
+  font-size: 12px;
 }
 
 .pagination {
