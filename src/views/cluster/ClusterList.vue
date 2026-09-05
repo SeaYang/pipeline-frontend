@@ -270,7 +270,9 @@ async function submitForm() {
         connectTimeoutMs: form.connectTimeoutMs,
         readTimeoutMs: form.readTimeoutMs,
         freeMemoryThreshold: form.freeMemoryThreshold,
-        maxRunningWorkflows: form.maxRunningWorkflows ?? null,
+        // 留空时通过 clearFields 显式置空（后端 null 字段不进 SET 子句，无法区分"不修改"）
+        maxRunningWorkflows: form.maxRunningWorkflows ?? undefined,
+        clearFields: form.maxRunningWorkflows == null ? ['maxRunningWorkflows'] : undefined,
         enabled: form.enabled,
         online: form.online,
         isDefault: form.isDefault,

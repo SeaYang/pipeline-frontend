@@ -66,6 +66,8 @@ export type ClusterUpdate = Omit<ClusterCreate, 'clusterName' | 'argoToken' | 'k
   argoToken?: string
   /** 留空表示不修改 */
   k8sToken?: string
+  /** 需显式清空（SET NULL）的字段名，当前仅支持 'maxRunningWorkflows' */
+  clearFields?: string[]
 }
 
 /** 测试连接入参 */
