@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, Search, Delete, Edit, Connection, Refresh } from '@element-plus/icons-vue'
 import {
@@ -144,34 +144,42 @@ const form = reactive({
   autoSyncTemplates: true,
 })
 
-const rules: FormRules = {
-  clusterName: [
-    { required: true, message: '请输入集群标识', trigger: 'blur' },
-    {
-      pattern: /^[a-z0-9-]{1,100}$/,
-      message: '小写字母数字中划线，长度 1~100',
-      trigger: 'blur',
-    },
-  ],
-  argoUrl: [
-    { required: true, message: '请输入 Argo Server 地址', trigger: 'blur' },
-    {
-      pattern: /^https?:\/\//,
-      message: '必须以 http:// 或 https:// 开头',
-      trigger: 'blur',
-    },
-  ],
-  argoToken: [{ required: true, message: '请输入 Argo Token', trigger: 'blur' }],
-  k8sMasterUrl: [
-    { required: true, message: '请输入 K8s API Server 地址', trigger: 'blur' },
-    {
-      pattern: /^https?:\/\//,
-      message: '必须以 http:// 或 https:// 开头',
-      trigger: 'blur',
-    },
-  ],
-  k8sToken: [{ required: true, message: '请输入 K8s Token', trigger: 'blur' }],
-}
+// 编辑模式下 Token 留空表示沿用原值，不做必填校验
+const rules = computed<FormRules>(() => {
+  const isCreate = dialogMode.value === 'create'
+  return {
+    clusterName: [
+      { required: true, message: '请输入集群标识', trigger: 'blur' },
+      {
+        pattern: /^[a-z0-9-]{1,100}$/,
+        message: '小写字母数字中划线，长度 1~100',
+        trigger: 'blur',
+      },
+    ],
+    argoUrl: [
+      { required: true, message: '请输入 Argo Server 地址', trigger: 'blur' },
+      {
+        pattern: /^https?:\/\//,
+        message: '必须以 http:// 或 https:// 开头',
+        trigger: 'blur',
+      },
+    ],
+    argoToken: isCreate
+      ? [{ required: true, message: '请输入 Argo Token', trigger: 'blur' }]
+      : [],
+    k8sMasterUrl: [
+      { required: true, message: '请输入 K8s API Server 地址', trigger: 'blur' },
+      {
+        pattern: /^https?:\/\//,
+        message: '必须以 http:// 或 https:// 开头',
+        trigger: 'blur',
+      },
+    ],
+    k8sToken: isCreate
+      ? [{ required: true, message: '请输入 K8s Token', trigger: 'blur' }]
+      : [],
+  }
+})
 
 function resetForm() {
   form.id = undefined
@@ -262,7 +270,9 @@ async function submitForm() {
         connectTimeoutMs: form.connectTimeoutMs,
         readTimeoutMs: form.readTimeoutMs,
         freeMemoryThreshold: form.freeMemoryThreshold,
-        maxRunningWorkflows: form.maxRunningWorkflows ?? null,
+        // 留空时通过 clearFields 显式置空（后端 null 字段不进 SET 子句，无法区分"不修改"）
+        maxRunningWorkflows: form.maxRunningWorkflows ?? undefined,
+        clearFields: form.maxRunningWorkflows == null ? ['maxRunningWorkflows'] : undefined,
         enabled: form.enabled,
         online: form.online,
         isDefault: form.isDefault,
