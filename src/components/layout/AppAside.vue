@@ -9,7 +9,7 @@ const route = useRoute()
 
 /**
  * 根据当前路由路径计算高亮的菜单 index。
- * <p>菜单顺序：1=应用信息、2=流水线、3=后台配置、4=Argo后台管理。
+ * <p>菜单顺序：1=应用信息、2=流水线、3=后台配置。
  * 支持子路由高亮父菜单：如 /pipeline/:id/run/latest 属于「流水线列表」，
  * /pipeline/execute-detail/:name 属于「流水线列表」（从流水线列表执行/历史跳入），
  * /dict/data/:dictType 属于「字典配置」。
@@ -36,8 +36,6 @@ const activeMenu = computed(() => {
   if (path.startsWith('/generic-config')) return '3-8'
   if (path.startsWith('/cron-job')) return '3-9'
   if (path.startsWith('/cluster')) return '3-10'
-  // Argo 后台管理
-  if (path.startsWith('/argo/pipelines')) return '4-1'
   return ''
 })
 
@@ -100,9 +98,6 @@ const handleMenuClick = (index: string) => {
     case '3-10':
       router.push('/cluster')
       break
-    case '4-1':
-      router.push('/argo/pipelines')
-      break
   }
 }
 </script>
@@ -121,7 +116,7 @@ const handleMenuClick = (index: string) => {
     <el-menu
       :collapse="isCollapse"
       :collapse-transition="false"
-      :default-openeds="['1', '2', '3', '4']"
+      :default-openeds="['1', '2', '3']"
       :default-active="activeMenu"
       @select="handleMenuClick"
     >
@@ -155,13 +150,6 @@ const handleMenuClick = (index: string) => {
         <el-menu-item index="3-8">通用配置</el-menu-item>
         <el-menu-item index="3-9">定时任务</el-menu-item>
         <el-menu-item index="3-10">集群管理</el-menu-item>
-      </el-sub-menu>
-      <el-sub-menu index="4">
-        <template #title>
-          <el-icon><DataBoard /></el-icon>
-          <span>Argo后台管理</span>
-        </template>
-        <el-menu-item index="4-1">流水线页面</el-menu-item>
       </el-sub-menu>
     </el-menu>
   </el-aside>
