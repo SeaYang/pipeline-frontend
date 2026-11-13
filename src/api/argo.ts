@@ -1,37 +1,6 @@
 import request from '@/utils/request'
 import type { ApiResult } from '@/api/demo'
 
-// ============ 类型（仅取列表展示所需字段） ============
-
-export interface ArgoWorkflowMetadata {
-  name: string
-  namespace: string
-  uid: string
-  creationTimestamp?: string
-  labels?: Record<string, string>
-  annotations?: Record<string, string>
-}
-
-export interface ArgoWorkflowStatus {
-  phase?: string
-  message?: string
-  startedAt?: string
-  finishedAt?: string
-  estimatedDuration?: number
-  progress?: string
-}
-
-export interface ArgoWorkflowItem {
-  metadata: ArgoWorkflowMetadata
-  status?: ArgoWorkflowStatus
-  spec?: Record<string, unknown>
-}
-
-export interface ArgoWorkflowList {
-  metadata?: { resourceVersion?: string }
-  items: ArgoWorkflowItem[]
-}
-
 // ============ 流水线详情（单个 Workflow 完整 CRD） ============
 
 export interface ArgoParameter {
@@ -121,20 +90,6 @@ export interface ArgoWorkflowDetail {
       templates?: ArgoTemplateDef[]
     }
   }
-}
-
-/**
- * 拉取 go-cicd-pipeline 模板下的流水线运行列表。
- * 走 Java 后端 DemoController#getWorkflowList：GET /demo/workflow/list，
- * labelSelector / limit / fields 均由后端写死，这里仅解包 Result<T>.data；
- * code !== 200 时抛错，由调用方 catch 统一提示。
- */
-export async function listWorkflows(): Promise<ArgoWorkflowList> {
-  const res = await request.get<unknown, ApiResult<ArgoWorkflowList>>('/demo/workflow/list')
-  if (res.code !== 200 || !res.data) {
-    throw new Error(res.message || '流水线列表获取失败')
-  }
-  return res.data
 }
 
 /**

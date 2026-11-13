@@ -53,11 +53,6 @@ const router = createRouter({
           component: () => import('@/views/pipeline/PipelineTriggerHistory.vue'),
         },
         {
-          path: 'argo/pipelines',
-          name: 'argo-pipelines',
-          component: () => import('@/views/argo/PipelineList.vue'),
-        },
-        {
           // 流水线执行详情（原 /argo/pipelines/:name，优化为语义更清晰的路径）
           path: 'pipeline/execute-detail/:name',
           name: 'pipeline-execute-detail',
