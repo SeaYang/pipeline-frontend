@@ -113,7 +113,10 @@ const form = reactive<TaskTemplate>({
 })
 
 const rules: FormRules<TaskTemplate> = {
-  taskTemplateCode: [{ required: true, message: '请输入任务模板编码', trigger: 'blur' }],
+  taskTemplateCode: [
+    { required: true, message: '请输入任务模板编码', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, message: '小写字母开头的多段格式（段内可含数字），用 - 连接，如 k8s-deploy-via-api', trigger: 'blur' },
+  ],
   name: [{ required: true, message: '请输入任务模板名称', trigger: 'blur' }],
   taskTemplateGroup: [{ required: true, message: '请选择所属分组', trigger: 'change' }],
 }
@@ -311,7 +314,7 @@ onMounted(() => {
             maxlength="64"
             show-word-limit
             :disabled="dialogMode === 'edit'"
-            placeholder="如 build-go"
+            placeholder="如 k8s-deploy-via-api"
           />
         </el-form-item>
         <el-form-item label="模板名称" prop="name">
