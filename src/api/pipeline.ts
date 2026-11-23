@@ -97,6 +97,8 @@ export interface RunParameter {
   regexPattern?: string
   paramGroup?: string
   paramGroupSort?: number
+  /** 组间排序值（取自字典 pipeline-parameter-group 的 dict_sort，越大越靠前） */
+  groupSort?: number
   /** 当前值（已计算） */
   value?: string
   /** 可见选项（select / radio 用） */

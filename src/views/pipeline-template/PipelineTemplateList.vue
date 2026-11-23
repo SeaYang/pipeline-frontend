@@ -158,7 +158,10 @@ async function fetchOverLimitPolicies() {
 }
 
 const rules: FormRules<PipelineTemplate> = {
-  pipelineTemplateCode: [{ required: true, message: '请输入流水线模板编码', trigger: 'blur' }],
+  pipelineTemplateCode: [
+    { required: true, message: '请输入流水线模板编码', trigger: 'blur' },
+    { pattern: /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, message: '小写字母开头的多段格式（段内可含数字），用 - 连接，如 go-cicd-pipeline', trigger: 'blur' },
+  ],
   name: [{ required: true, message: '请输入流水线模板名称', trigger: 'blur' }],
   pipelineTemplateGroup: [{ required: true, message: '请选择所属分组', trigger: 'change' }],
   appMaxRunningLimit: [

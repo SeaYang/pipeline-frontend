@@ -49,11 +49,22 @@ const groupedParams = computed(() => {
     }
     groups.get(group)!.push(p)
   }
-  // 组内按 paramGroupSort 排序
+  // 组内按 paramGroupSort 倒序排序（与后端 /parameters 接口排序规则保持一致）
   for (const [, list] of groups) {
-    list.sort((a, b) => (a.paramGroupSort ?? 0) - (b.paramGroupSort ?? 0))
+    list.sort((a, b) => (b.paramGroupSort ?? 0) - (a.paramGroupSort ?? 0))
   }
-  return Array.from(groups.entries()).map(([group, list]) => ({ group, list }))
+  // 组间按 groupSort 倒序排序（后端返回的字典 dict_sort），未返回 groupSort 的组保持原顺序
+  const entries = Array.from(groups.entries())
+  entries.sort((a, b) => {
+    const gs = (x: [string, RunParameter[]]) => x[1][0]?.groupSort
+    const sa = gs(a)
+    const sb = gs(b)
+    if (sa == null && sb == null) return 0
+    if (sa == null) return 1
+    if (sb == null) return -1
+    return sb - sa
+  })
+  return entries.map(([group, list]) => ({ group, list }))
 })
 
 // ==================== 选项条件过滤 ====================

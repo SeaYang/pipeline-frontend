@@ -86,14 +86,14 @@ time="2026-07-08T14:10:25 UTC" level=info msg="skopeo copy docker-archive:/tmp/b
 time="2026-07-08T14:10:39 UTC" level=info msg="sub-process exited" argo=true error="<nil>"
 time="2026-07-08T14:10:39 UTC" level=info msg="/tmp/build-image-repo-path -> /var/run/argo/outputs/parameters//tmp/build-image-repo-path" argo=true`,
 
-  'go-k8s-deploy-via-api': `[Info] go-k8s-deploy-via-api 开始，直调 k8s API（SSA + rollout 轮询）
+  'k8s-deploy-via-api': `[Info] k8s-deploy-via-api 开始，直调 k8s API（SSA + rollout 轮询）
 time="2026-07-08T14:11:03 UTC" level=info msg="applying Deployment go-web-demo via Server-Side Apply (fieldManager=go-cicd-pipeline)" argo=true
 deployment.apps/go-web-demo serverside-applied (5 fields managed)
 time="2026-07-08T14:11:03 UTC" level=info msg="waiting for rollout: deployment go-web-demo to become ready (max 5m0s)" argo=true
 Waiting for deployment "go-web-demo" rollout to finish: 0 of 1 updated replicas are available...
 Waiting for deployment "go-web-demo" rollout to finish: 1 of 1 updated replicas are available...
 deployment "go-web-demo" successfully rolled out
- [Info] go-k8s-deploy-via-api 完成，revision=20260708140642077，可用副本=1/1
+ [Info] k8s-deploy-via-api 完成，revision=20260708140642077，可用副本=1/1
 time="2026-07-08T14:11:48 UTC" level=info msg="sub-process exited" argo=true error="<nil>"`,
 }
 
