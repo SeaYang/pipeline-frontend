@@ -26,7 +26,7 @@ const query = reactive<ClusterQuery>({
   enabled: undefined,
   online: undefined,
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 15,
 })
 
 async function fetchData() {
@@ -425,7 +425,7 @@ async function handleDelete(row: ClusterInfo) {
         v-model:current-page="query.pageNum"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[15, 30, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"

@@ -303,11 +303,11 @@ onMounted(() => {
       <el-table-column
         label="流水线模板编码"
         prop="pipelineTemplateCode"
-        min-width="260"
+        min-width="340"
         show-overflow-tooltip
         sortable="custom"
       />
-      <el-table-column label="流水线模板名称" prop="name" min-width="160" sortable="custom" />
+      <el-table-column label="流水线模板名称" prop="name" min-width="190" show-overflow-tooltip sortable="custom" />
       <el-table-column label="所属分组" prop="pipelineTemplateGroup" min-width="105" sortable="custom">
         <template #default="{ row }">{{ groupLabel(row.pipelineTemplateGroup) }}</template>
       </el-table-column>

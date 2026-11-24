@@ -30,7 +30,7 @@ const query = reactive<PipelineParameterQuery>({
   sortField: 'id',
   sortOrder: 'asc',
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 15,
 })
 
 async function fetchData() {
@@ -221,12 +221,12 @@ async function handleDelete(row: PipelineParameter) {
       @sort-change="handleSortChange"
     >
       <el-table-column label="ID" prop="id" width="70" sortable="custom" />
-      <el-table-column label="参数名" prop="name" min-width="140" sortable="custom">
+      <el-table-column label="参数名" prop="name" min-width="180" sortable="custom">
         <template #default="{ row }">
           <span class="param-name-link" @click="goDetail(row)">{{ row.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="中文名称" prop="label" min-width="120" />
+      <el-table-column label="中文名称" prop="label" min-width="155" />
       <el-table-column label="描述" prop="description" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ row.description ?? '-' }}</template>
       </el-table-column>
@@ -258,7 +258,7 @@ async function handleDelete(row: PipelineParameter) {
         <template #default="{ row }">{{ groupText(row.paramGroup) }}</template>
       </el-table-column>
       <el-table-column label="组内排序" prop="paramGroupSort" width="90" align="center" />
-      <el-table-column label="依赖参数" prop="dependParams" min-width="180">
+      <el-table-column label="依赖参数" prop="dependParams" min-width="235">
         <template #default="{ row }">
           <div v-if="parseDependParams(row.dependParams).length > 0" class="depend-tags">
             <el-tag
@@ -300,7 +300,7 @@ async function handleDelete(row: PipelineParameter) {
         v-model:current-page="query.pageNum"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[15, 30, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"

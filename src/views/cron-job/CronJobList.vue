@@ -29,7 +29,7 @@ const query = reactive<CronJobQuery>({
   name: '',
   enabled: undefined,
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 15,
 })
 
 async function fetchData() {
@@ -270,15 +270,15 @@ function misfirePolicyText(code: string): string {
 
     <el-table v-loading="loading" :data="list" border stripe style="width: 100%" empty-text="暂无定时任务">
       <el-table-column label="ID" prop="id" width="70" />
-      <el-table-column label="任务名称" prop="name" min-width="140" show-overflow-tooltip />
-      <el-table-column label="Bean.方法" min-width="220" show-overflow-tooltip>
+      <el-table-column label="任务名称" prop="name" min-width="210" show-overflow-tooltip />
+      <el-table-column label="Bean.方法" min-width="330" show-overflow-tooltip>
         <template #default="{ row }">{{ row.beanName }}.{{ row.methodName }}</template>
       </el-table-column>
       <el-table-column label="方法参数" prop="methodParams" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ row.methodParams || '-' }}</template>
       </el-table-column>
       <el-table-column label="CRON表达式" prop="cronExpr" width="150" show-overflow-tooltip />
-      <el-table-column label="错过策略" width="100">
+      <el-table-column label="错过策略" min-width="150">
         <template #default="{ row }">{{ misfirePolicyText(row.misfirePolicy) }}</template>
       </el-table-column>
       <el-table-column label="允许并发" width="90" align="center">
@@ -317,7 +317,7 @@ function misfirePolicyText(code: string): string {
         v-model:current-page="query.pageNum"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[15, 30, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"
