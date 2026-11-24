@@ -25,7 +25,7 @@ const query = reactive<CronJobLogQuery>({
   jobId: route.query.jobId ? Number(route.query.jobId) : undefined,
   status: '',
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 15,
 })
 
 const statusTagType: Record<string, '' | 'success' | 'warning' | 'danger' | 'info'> = {
@@ -168,7 +168,7 @@ function openDetail(row: CronJobLog) {
         v-model:current-page="query.pageNum"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[15, 30, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"

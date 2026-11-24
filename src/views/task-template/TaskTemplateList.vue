@@ -36,7 +36,7 @@ const query = reactive<TaskTemplateQuery>({
   sortField: 'id',
   sortOrder: 'asc',
   pageNum: 1,
-  pageSize: 10,
+  pageSize: 15,
 })
 
 /** 分页查询任务模板 */
@@ -292,7 +292,7 @@ onMounted(() => {
         v-model:current-page="query.pageNum"
         v-model:page-size="query.pageSize"
         :total="total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="[15, 30, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"
