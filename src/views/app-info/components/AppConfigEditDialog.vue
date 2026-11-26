@@ -84,7 +84,12 @@ async function handleSubmit() {
 watch(visible, (val) => {
   if (val) {
     value.value = props.row?.value ?? ''
-    loadOptions()
+    loadOptions().then(() => {
+      // switch 类型值非 "true"/"false" 时归一化为 "false"，避免开关处于未选中状态
+      if (findOption()?.componentType === 'switch') {
+        value.value = value.value === 'true' ? 'true' : 'false'
+      }
+    })
   }
 })
 </script>
@@ -128,6 +133,14 @@ watch(visible, (val) => {
             :value="opt.value"
           />
         </el-select>
+
+        <!-- switch：布尔值开关，值以字符串 "true"/"false" 保存 -->
+        <el-switch
+          v-else-if="findOption()?.componentType === 'switch'"
+          v-model="value"
+          active-value="true"
+          inactive-value="false"
+        />
 
         <!-- git-tree -->
         <GitTreeSelect

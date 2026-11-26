@@ -47,6 +47,7 @@ onMounted(async () => {
       { code: 'select', description: '下拉框' },
       { code: 'radio', description: '单选框组' },
       { code: 'radio-button-group', description: '按钮单选组' },
+      { code: 'switch', description: '开关' },
       { code: 'git-tree', description: 'Git目录树' },
       { code: 'disabled-input', description: '只读输入框' },
       { code: 'hidden', description: '隐藏' },
