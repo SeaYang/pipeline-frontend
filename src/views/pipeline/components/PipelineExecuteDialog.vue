@@ -87,6 +87,37 @@ function visibleOptions(param: RunParameter): RunParameterOption[] {
 }
 
 // ==================== 加载参数 ====================
+
+/** switch 组件的布尔值，以字符串 "true"/"false" 表示 */
+const SWITCH_TRUE = 'true'
+const SWITCH_FALSE = 'false'
+
+/** 判断参数是否为 switch 组件 */
+function isSwitch(p: RunParameter): boolean {
+  return p.componentType === 'switch'
+}
+
+/**
+ * 计算参数的初始值：优先 value，其次 asDefault 选项；
+ * switch 组件无值时默认为 "false"，避免开关处于未选中状态。
+ */
+function initialValue(p: RunParameter): string {
+  if (p.value != null && p.value !== '') {
+    return isSwitch(p) ? normalizeSwitchValue(p.value) : p.value
+  }
+  if (p.options && p.options.length > 0) {
+    const defaultOpt = p.options.find((o) => o.asDefault)
+    if (defaultOpt?.value != null) return defaultOpt.value
+  }
+  return isSwitch(p) ? SWITCH_FALSE : ''
+}
+
+/** 将任意值归一化为 switch 的 "true"/"false"（兼容 "1"/"0"、"TRUE" 等） */
+function normalizeSwitchValue(val: string): string {
+  const v = String(val).trim().toLowerCase()
+  return v === 'true' || v === '1' || v === 'yes' || v === 'on' ? SWITCH_TRUE : SWITCH_FALSE
+}
+
 async function loadParams() {
   loading.value = true
   params.value = []
@@ -94,16 +125,8 @@ async function loadParams() {
   try {
     const list = await listRunParameters({ pipelineId: props.pipelineId })
     params.value = list
-    // 填充初始值：优先 value，其次 asDefault 选项
     for (const p of list) {
-      if (p.value != null && p.value !== '') {
-        values[p.name] = p.value
-      } else if (p.options && p.options.length > 0) {
-        const defaultOpt = p.options.find((o) => o.asDefault)
-        values[p.name] = defaultOpt?.value ?? ''
-      } else {
-        values[p.name] = ''
-      }
+      values[p.name] = initialValue(p)
     }
     // 初始化参数值快照（用于联动刷新检测）
     prevValues = { ...values }
@@ -171,14 +194,7 @@ async function doRefresh(changedParamName: string) {
     // 全量重建参数值
     Object.keys(values).forEach((k) => delete values[k])
     for (const p of allParams) {
-      if (p.value != null && p.value !== '') {
-        values[p.name] = p.value
-      } else if (p.options && p.options.length > 0) {
-        const defaultOpt = p.options.find((o) => o.asDefault)
-        values[p.name] = defaultOpt?.value ?? ''
-      } else {
-        values[p.name] = ''
-      }
+      values[p.name] = initialValue(p)
     }
     // 更新快照
     prevValues = { ...values }
@@ -325,6 +341,14 @@ async function submit() {
               {{ opt.label ?? opt.value }}
             </el-radio>
           </el-radio-group>
+
+          <!-- switch：布尔值开关，值以字符串 "true"/"false" 提交 -->
+          <el-switch
+            v-else-if="p.componentType === 'switch'"
+            v-model="values[p.name]"
+            active-value="true"
+            inactive-value="false"
+          />
 
           <!-- git-tree：GitLab 目录树懒加载选择 -->
           <GitTreeSelect

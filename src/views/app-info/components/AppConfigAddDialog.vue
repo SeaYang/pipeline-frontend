@@ -87,9 +87,9 @@ function findOption(name: string): AppParameterOption | undefined {
   return options.value.find((o) => o.name === name)
 }
 
-/** 参数名变更时清空值 */
+/** 参数名变更时重置值（switch 类型默认为 "false"） */
 function handleParamChange(row: ConfigRow) {
-  row.value = ''
+  row.value = findOption(row.parameterName)?.componentType === 'switch' ? 'false' : ''
 }
 
 // ==================== 提交 ====================
@@ -200,6 +200,14 @@ watch(visible, (val) => {
               :value="opt.value"
             />
           </el-select>
+
+          <!-- switch：布尔值开关，值以字符串 "true"/"false" 保存 -->
+          <el-switch
+            v-else-if="findOption(row.parameterName)?.componentType === 'switch'"
+            v-model="row.value"
+            active-value="true"
+            inactive-value="false"
+          />
 
           <!-- git-tree -->
           <GitTreeSelect
